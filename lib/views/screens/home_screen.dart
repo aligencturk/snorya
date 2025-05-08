@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../viewmodels/article_view_model.dart';
 import '../../utils/constants.dart';
 import '../components/article_card.dart';
-import '../components/category_selector.dart';
 import 'favorites_screen.dart';
 import 'custom_topic_screen.dart';
 
@@ -20,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   late AnimationController _animationController;
   late Animation<double> _animation;
   bool _isScrolling = false;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -57,10 +57,24 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       extendBodyBehindAppBar: true,
+      drawer: _buildDrawer(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: Container(
+          margin: const EdgeInsets.only(left: 8.0),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.3),
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+            tooltip: 'Menü',
+          ),
+        ),
         title: AnimatedBuilder(
           animation: _animation,
           builder: (context, child) {
@@ -177,67 +191,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   );
                 },
               ),
-              
-              // Üst kategori seçici
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  bottom: false,
-                  child: Column(
-                    children: [
-                      CategorySelector(
-                        selectedCategory: viewModel.selectedCategory,
-                        onCategorySelected: (category) {
-                          viewModel.changeCategory(category);
-                          _animationController.reset();
-                          _animationController.forward();
-                        },
-                      ),
-                      
-                      // Özel kategori seçiliyse arama çubuğu göster
-                      if (viewModel.selectedCategory == AppConstants.categoryCustom)
-                        _buildSearchBar(viewModel),
-                    ],
-                  ),
-                ),
-              ),
-              
-              // Yükleme göstergesi (altta)
-              if (viewModel.isLoadingMore)
-                Positioned(
-                  bottom: 20,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Text(
-                            'Yeni makaleler yükleniyor',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
               
               // Hafif kaydırma hint'i (ilk açıldığında)
               if (!_isScrolling && viewModel.currentIndex == 0)
@@ -396,57 +349,169 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
   
-  /// Özel kategori için arama çubuğu
-  Widget _buildSearchBar(ArticleViewModel viewModel) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            spreadRadius: 0,
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Özel konu ara...',
-                border: InputBorder.none,
-                isDense: true,
-                prefixIcon: const Icon(Icons.search),
-                prefixIconConstraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-                hintStyle: TextStyle(color: Colors.grey.shade600),
+  /// Drawer widget
+  Widget _buildDrawer(BuildContext context) {
+    return Drawer(
+      child: Consumer<ArticleViewModel>(
+        builder: (context, viewModel, child) {
+          return Container(
+            color: Colors.blue.shade900,
+            child: SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.auto_awesome,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Snorya',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Divider(color: Colors.white24),
+                  // Kategoriler başlığı
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      'Kategoriler',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  // Kategori listesi
+                  _buildCategoryTile(
+                    context, 
+                    AppConstants.categoryMixed, 
+                    Icons.shuffle, 
+                    viewModel.selectedCategory == AppConstants.categoryMixed,
+                    viewModel
+                  ),
+                  _buildCategoryTile(
+                    context, 
+                    AppConstants.categoryScience, 
+                    Icons.science, 
+                    viewModel.selectedCategory == AppConstants.categoryScience,
+                    viewModel
+                  ),
+                  _buildCategoryTile(
+                    context, 
+                    AppConstants.categoryHistory, 
+                    Icons.history_edu, 
+                    viewModel.selectedCategory == AppConstants.categoryHistory,
+                    viewModel
+                  ),
+                  _buildCategoryTile(
+                    context, 
+                    AppConstants.categoryTechnology, 
+                    Icons.computer, 
+                    viewModel.selectedCategory == AppConstants.categoryTechnology,
+                    viewModel
+                  ),
+                  _buildCategoryTile(
+                    context, 
+                    AppConstants.categoryCulture, 
+                    Icons.theater_comedy, 
+                    viewModel.selectedCategory == AppConstants.categoryCulture,
+                    viewModel
+                  ),
+                  _buildCategoryTile(
+                    context, 
+                    AppConstants.categoryCustom, 
+                    Icons.topic, 
+                    viewModel.selectedCategory == AppConstants.categoryCustom,
+                    viewModel
+                  ),
+                  Divider(color: Colors.white24),
+                  // Favoriler kısmı
+                  ListTile(
+                    leading: Icon(Icons.bookmark, color: Colors.amber),
+                    title: Text(
+                      'Favoriler',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _navigateToFavorites(context);
+                    },
+                  ),
+                  const Spacer(),
+                  // Alt kısım - Uygulama bilgisi
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      '© ${DateTime.now().year} Snorya',
+                      style: TextStyle(color: Colors.white60),
+                    ),
+                  ),
+                ],
               ),
-              onSubmitted: (value) {
-                if (value.trim().isNotEmpty) {
-                  viewModel.addCustomTopic(value.trim());
-                  viewModel.changeCustomTopic(value.trim());
-                  FocusScope.of(context).unfocus();
-                }
-              },
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings, size: 20),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const CustomTopicScreen()),
-              );
-            },
-            tooltip: 'Konuları Yönet',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-          ),
-        ],
+          );
+        },
       ),
+    );
+  }
+  
+  // Kategori liste öğesi
+  Widget _buildCategoryTile(BuildContext context, String category, IconData icon, bool isSelected, ArticleViewModel viewModel) {
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: isSelected ? Colors.white : Colors.white70,
+      ),
+      title: Text(
+        category,
+        style: TextStyle(
+          color: isSelected ? Colors.white : Colors.white70,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      selected: isSelected,
+      selectedTileColor: Colors.blue.shade700,
+      onTap: () {
+        // Drawer'ı kapat
+        Navigator.pop(context);
+        
+        // Eğer özel kategoriyse ve seçili değilse, önce değiştir
+        if (category == AppConstants.categoryCustom && !isSelected) {
+          viewModel.changeCategory(category);
+          Future.delayed(Duration(milliseconds: 300), () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const CustomTopicScreen()),
+            );
+          });
+        } 
+        // Eğer özel kategori seçiliyse ve zaten seçiliyse, topic ekranına git
+        else if (category == AppConstants.categoryCustom && isSelected) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CustomTopicScreen()),
+          );
+        }
+        // Diğer kategoriler için sadece kategoriyi değiştir
+        else {
+          viewModel.changeCategory(category);
+          _animationController.reset();
+          _animationController.forward();
+        }
+      },
     );
   }
 } 
