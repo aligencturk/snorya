@@ -450,6 +450,71 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       _navigateToFavorites(context);
                     },
                   ),
+                  
+                  // Wikimedia Kaynakları başlığı
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      'Wikimedia Kaynakları',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  
+                  // WikiSpecies
+                  ListTile(
+                    leading: Icon(Icons.pets, color: Colors.green.shade300),
+                    title: Text(
+                      'WikiSpecies',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    subtitle: Text(
+                      'Türler hakkında bilgiler',
+                      style: TextStyle(color: Colors.white60, fontSize: 12),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showWikiSpeciesDialog(context, viewModel);
+                    },
+                  ),
+                  
+                  // Commons
+                  ListTile(
+                    leading: Icon(Icons.image, color: Colors.amber.shade300),
+                    title: Text(
+                      'Wikimedia Commons',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    subtitle: Text(
+                      'Görsel ve medya içerikleri',
+                      style: TextStyle(color: Colors.white60, fontSize: 12),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showCommonsDialog(context, viewModel);
+                    },
+                  ),
+                  
+                  // Gisburn Forest
+                  ListTile(
+                    leading: Icon(Icons.forest, color: Colors.green),
+                    title: Text(
+                      'Gisburn Forest',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    subtitle: Text(
+                      'Orman hakkında bilgiler',
+                      style: TextStyle(color: Colors.white60, fontSize: 12),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      viewModel.loadGisburnForestInfo();
+                    },
+                  ),
+                  
                   const Spacer(),
                   // Alt kısım - Uygulama bilgisi
                   Padding(
@@ -512,6 +577,116 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           _animationController.forward();
         }
       },
+    );
+  }
+  
+  // WikiSpecies için Dialog
+  void _showWikiSpeciesDialog(BuildContext context, ArticleViewModel viewModel) {
+    final TextEditingController controller = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('WikiSpecies Ara'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Bir tür adı girin (Türkçe veya Latince):',
+              style: TextStyle(fontSize: 14),
+            ),
+            SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                hintText: 'Örn: Köpek, Canis lupus...',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Öneriler: Urocyon littoralis (Island Fox), Homo sapiens, Panthera tigris',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('İptal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final species = controller.text.trim();
+              if (species.isNotEmpty) {
+                Navigator.pop(context);
+                viewModel.loadWikiSpeciesInfo(species);
+              }
+            },
+            child: Text('Ara'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Commons için Dialog
+  void _showCommonsDialog(BuildContext context, ArticleViewModel viewModel) {
+    final TextEditingController controller = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Commons Görselleri Ara'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Görselleri aramak için bir konu girin:',
+              style: TextStyle(fontSize: 14),
+            ),
+            SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                hintText: 'Örn: Istanbul, Nature...',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Öneriler: Gisburn Forest, Van Gogh, Famous Landmarks',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('İptal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final topic = controller.text.trim();
+              if (topic.isNotEmpty) {
+                Navigator.pop(context);
+                viewModel.loadCommonsImages(topic);
+              }
+            },
+            child: Text('Ara'),
+          ),
+        ],
+      ),
     );
   }
 } 
