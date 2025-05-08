@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/article_view_model.dart';
 import '../components/article_card.dart';
@@ -12,12 +13,32 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   final PageController _pageController = PageController();
-  
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+  bool _isScrolling = false;
+
   @override
   void initState() {
     super.initState();
+    
+    // Tam ekran modu
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    
+    // Animasyon kontrolcüsü
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    
+    _animation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutBack,
+    );
+    
+    _animationController.forward();
+    
     // ViewModel'i başlat ve ilk makaleyi yükle
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<ArticleViewModel>(context, listen: false).initialize();
@@ -27,116 +48,334 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Snorya'),
-        actions: [
-          // Favoriler butonu
-          IconButton(
-            icon: const Icon(Icons.bookmark),
-            onPressed: () => _navigateToFavorites(context),
-            tooltip: 'Favoriler',
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Kategori seçici
-          Consumer<ArticleViewModel>(
-            builder: (context, viewModel, child) {
-              return CategorySelector(
-                selectedCategory: viewModel.selectedCategory,
-                onCategorySelected: (category) {
-                  viewModel.changeCategory(category);
-                },
-              );
-            },
-          ),
-          
-          // Makale kartları
-          Expanded(
-            child: Consumer<ArticleViewModel>(
-              builder: (context, viewModel, child) {
-                if (viewModel.state == ArticleLoadingState.initial) {
-                  return const Center(child: Text('Makaleler yükleniyor...'));
-                }
-                
-                if (viewModel.state == ArticleLoadingState.error) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(viewModel.errorMessage),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => viewModel.loadNextArticle(),
-                          child: const Text('Tekrar Dene'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: AnimatedBuilder(
+          animation: _animation,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _animation.value,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.auto_awesome,
+                    color: Colors.white,
+                    size: 20,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 5,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Snorya',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black45,
+                          blurRadius: 10.0,
                         ),
                       ],
                     ),
-                  );
-                }
-                
-                // Makaleler yükleniyor
-                if (viewModel.state == ArticleLoadingState.loading && viewModel.articles.isEmpty) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                
-                // Makaleler yüklendi
-                return PageView.builder(
-                  controller: _pageController,
-                  scrollDirection: Axis.vertical,
-                  itemCount: viewModel.articles.length + (viewModel.state == ArticleLoadingState.loading ? 1 : 0),
-                  onPageChanged: (index) {
-                    // Son sayfaya geldiğinde yeni makale yükle
-                    if (index == viewModel.articles.length - 1 && 
-                        viewModel.state != ArticleLoadingState.loading) {
-                      viewModel.loadNextArticle();
-                    }
-                    
-                    // Görünen makaleyi güncelle
-                    if (index < viewModel.articles.length) {
-                      viewModel.goToArticle(index);
-                    }
-                  },
-                  itemBuilder: (context, index) {
-                    // Yükleme göstergesi
-                    if (index == viewModel.articles.length) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    
-                    // Makale kartı
-                    final article = viewModel.articles[index];
-                    return ArticleCard(
-                      article: article,
-                      onFavoriteToggle: () => viewModel.toggleFavorite(),
-                      onRefresh: () {
-                        viewModel.loadNextArticle();
-                        // Yeni makaleye geç
-                        Future.delayed(const Duration(milliseconds: 100), () {
-                          if (mounted) {
-                            _pageController.animateToPage(
-                              viewModel.articles.length - 1, 
-                              duration: const Duration(milliseconds: 300), 
-                              curve: Curves.easeInOut,
-                            );
-                          }
-                        });
-                      },
-                    );
-                  },
-                );
-              },
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        actions: [
+          // Favoriler butonu
+          Container(
+            margin: const EdgeInsets.only(right: 8.0),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.3),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.bookmark, color: Colors.white),
+              onPressed: () => _navigateToFavorites(context),
+              tooltip: 'Favoriler',
             ),
           ),
         ],
       ),
+      body: Consumer<ArticleViewModel>(
+        builder: (context, viewModel, child) {
+          if (viewModel.state == ArticleLoadingState.initial || 
+              (viewModel.state == ArticleLoadingState.loading && viewModel.articles.isEmpty)) {
+            return _buildLoadingPlaceholder('Makaleler yükleniyor...');
+          }
+          
+          if (viewModel.state == ArticleLoadingState.error && viewModel.articles.isEmpty) {
+            return _buildErrorWidget(viewModel);
+          }
+          
+          // İçerik yüklendiyse TikTok tarzı sonsuz scroll göster
+          return Stack(
+            children: [
+              // Makale sayfaları
+              PageView.builder(
+                controller: _pageController,
+                scrollDirection: Axis.vertical,
+                onPageChanged: (index) {
+                  // Kaydırma durumunu güncelle
+                  _isScrolling = true;
+                  
+                  // AnimationController'ı yeniden başlat
+                  _animationController.reset();
+                  _animationController.forward();
+                  
+                  // ViewModel'e bildir ve gerekliyse yeni içerik yüklemesini sağla
+                  viewModel.checkAndLoadMoreArticles(index);
+                  
+                  // Kısa bir süre sonra kaydırma durumunu kapat
+                  Future.delayed(const Duration(milliseconds: 200), () {
+                    if (mounted) {
+                      setState(() {
+                        _isScrolling = false;
+                      });
+                    }
+                  });
+                },
+                itemCount: viewModel.articles.length,
+                itemBuilder: (context, index) {
+                  // Makale kartı
+                  final article = viewModel.articles[index];
+                  
+                  // Sonsuz kaydırma kontrolü
+                  if (index == viewModel.articles.length - 1) {
+                    // Son elemana gelince, otomatik olarak daha fazla içerik yükle
+                    Future.microtask(() {
+                      viewModel.checkAndLoadMoreArticles(index);
+                    });
+                  }
+                  
+                  return FadeTransition(
+                    opacity: _animation,
+                    child: ArticleCard(
+                      article: article,
+                      onFavoriteToggle: () => viewModel.toggleFavorite(),
+                      onRefresh: () => _handleRefresh(viewModel),
+                    ),
+                  );
+                },
+              ),
+              
+              // Üst kategori seçici
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  bottom: false,
+                  child: CategorySelector(
+                    selectedCategory: viewModel.selectedCategory,
+                    onCategorySelected: (category) {
+                      viewModel.changeCategory(category);
+                      _animationController.reset();
+                      _animationController.forward();
+                    },
+                  ),
+                ),
+              ),
+              
+              // Yükleme göstergesi (altta)
+              if (viewModel.isLoadingMore)
+                Positioned(
+                  bottom: 20,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Text(
+                            'Yeni makaleler yükleniyor',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              
+              // Hafif kaydırma hint'i (ilk açıldığında)
+              if (!_isScrolling && viewModel.currentIndex == 0)
+                Positioned(
+                  bottom: 80,
+                  right: 20,
+                  child: AnimatedOpacity(
+                    opacity: 0.8,
+                    duration: const Duration(milliseconds: 300),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Column(
+                        children: [
+                          Icon(
+                            Icons.keyboard_arrow_up,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                          Text(
+                            'Kaydır',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
     );
+  }
+  
+  /// Hata ekranı widgetı
+  Widget _buildErrorWidget(ArticleViewModel viewModel) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.blue.shade700,
+            Colors.indigo.shade900,
+          ],
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Colors.white,
+              size: 60,
+              shadows: [
+                Shadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 10,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                viewModel.errorMessage,
+                style: const TextStyle(color: Colors.white),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.refresh),
+              label: const Text('Tekrar Dene'),
+              onPressed: () => viewModel.initialize(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.blue.shade700,
+                elevation: 8,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  /// Yükleme ekranı
+  Widget _buildLoadingPlaceholder(String message) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.blue.shade700,
+            Colors.indigo.shade900,
+          ],
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              message,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  /// Yenileme işlemini ele al
+  void _handleRefresh(ArticleViewModel viewModel) {
+    viewModel.refreshArticle();
+    
+    // Yeni makaleye geç
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _pageController.animateToPage(
+          viewModel.articles.length - 1, 
+          duration: const Duration(milliseconds: 500), 
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
   }
   
   /// Favoriler ekranına git

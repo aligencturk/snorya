@@ -10,6 +10,7 @@ class AppConstants {
   static const String categoryTechnology = 'Teknoloji';
   static const String categoryCulture = 'Kültür';
   static const String categoryMixed = 'Karışık';
+  static const String categoryCustom = 'Özel';
   
   static const List<String> categories = [
     categoryMixed,
@@ -17,6 +18,21 @@ class AppConstants {
     categoryHistory,
     categoryTechnology,
     categoryCulture,
+    categoryCustom,
+  ];
+  
+  // Özel Kategoriler için Öneriler
+  static const List<String> suggestedCustomTopics = [
+    'Fenerbahçe',
+    'Galatasaray',
+    'Beşiktaş',
+    'Trabzonspor',
+    'İstanbul',
+    'Ankara',
+    'Türk Mutfağı',
+    'Türk Müziği',
+    'Antalya',
+    'Kapadokya',
   ];
   
   // Wikipedia API Sabitleri
@@ -30,6 +46,8 @@ class AppConstants {
   // Ön bellek Anahtarları
   static const String cacheKeyFavorites = 'favorites';
   static const String cacheKeyLastCategory = 'last_category';
+  static const String cacheKeyCustomTopics = 'custom_topics';
+  static const String cacheKeyLastCustomTopic = 'last_custom_topic';
   
   // Hata Mesajları
   static const String errorLoadingArticle = 'Makale yüklenirken bir hata oluştu. Lütfen tekrar deneyin.';

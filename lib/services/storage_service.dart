@@ -107,4 +107,50 @@ class StorageService {
       return AppConstants.categoryMixed;
     }
   }
+
+  /// Son seçilen özel konuyu kaydet
+  Future<void> saveLastCustomTopic(String topic) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AppConstants.cacheKeyLastCustomTopic, topic);
+  }
+  
+  /// Son seçilen özel konuyu getir
+  Future<String> getLastCustomTopic() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString(AppConstants.cacheKeyLastCustomTopic) ?? AppConstants.suggestedCustomTopics.first;
+  }
+  
+  /// Özel konuları kaydet
+  Future<void> saveCustomTopics(List<String> topics) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(AppConstants.cacheKeyCustomTopics, topics);
+  }
+  
+  /// Özel konuları getir
+  Future<List<String>> getCustomTopics() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(AppConstants.cacheKeyCustomTopics) ?? AppConstants.suggestedCustomTopics;
+  }
+  
+  /// Özel konu ekle
+  Future<void> addCustomTopic(String topic) async {
+    final existingTopics = await getCustomTopics();
+    if (!existingTopics.contains(topic)) {
+      existingTopics.add(topic);
+      await saveCustomTopics(existingTopics);
+    }
+  }
+  
+  /// Özel konuyu kaldır
+  Future<void> removeCustomTopic(String topic) async {
+    final existingTopics = await getCustomTopics();
+    existingTopics.remove(topic);
+    await saveCustomTopics(existingTopics);
+    
+    // Eğer son seçilen konu bu ise, yeni bir tane seç
+    final lastTopic = await getLastCustomTopic();
+    if (lastTopic == topic && existingTopics.isNotEmpty) {
+      await saveLastCustomTopic(existingTopics.first);
+    }
+  }
 } 
