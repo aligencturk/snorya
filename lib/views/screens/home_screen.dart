@@ -5,6 +5,7 @@ import '../../viewmodels/article_view_model.dart';
 import '../components/article_card.dart';
 import '../components/category_selector.dart';
 import 'favorites_screen.dart';
+import 'custom_topic_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -183,13 +184,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 right: 0,
                 child: SafeArea(
                   bottom: false,
-                  child: CategorySelector(
-                    selectedCategory: viewModel.selectedCategory,
-                    onCategorySelected: (category) {
-                      viewModel.changeCategory(category);
-                      _animationController.reset();
-                      _animationController.forward();
-                    },
+                  child: Column(
+                    children: [
+                      CategorySelector(
+                        selectedCategory: viewModel.selectedCategory,
+                        onCategorySelected: (category) {
+                          viewModel.changeCategory(category);
+                          _animationController.reset();
+                          _animationController.forward();
+                        },
+                      ),
+                      
+                      // Özel kategori seçiliyse arama çubuğu göster
+                      if (viewModel.selectedCategory == AppConstants.categoryCustom)
+                        _buildSearchBar(viewModel),
+                    ],
                   ),
                 ),
               ),
@@ -383,6 +392,60 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     Navigator.push(
       context, 
       MaterialPageRoute(builder: (context) => const FavoritesScreen()),
+    );
+  }
+  
+  /// Özel kategori için arama çubuğu
+  Widget _buildSearchBar(ArticleViewModel viewModel) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Özel konu ara...',
+                border: InputBorder.none,
+                isDense: true,
+                prefixIcon: const Icon(Icons.search),
+                prefixIconConstraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                hintStyle: TextStyle(color: Colors.grey.shade600),
+              ),
+              onSubmitted: (value) {
+                if (value.trim().isNotEmpty) {
+                  viewModel.addCustomTopic(value.trim());
+                  viewModel.changeCustomTopic(value.trim());
+                  FocusScope.of(context).unfocus();
+                }
+              },
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings, size: 20),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CustomTopicScreen()),
+              );
+            },
+            tooltip: 'Konuları Yönet',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+          ),
+        ],
+      ),
     );
   }
 } 

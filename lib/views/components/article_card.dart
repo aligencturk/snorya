@@ -1,10 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../models/article.dart';
-import '../../utils/constants.dart';
-import 'dart:math';
-import 'package:flutter_markdown/flutter_markdown.dart';
 
 class ArticleCard extends StatefulWidget {
   final Article article;
@@ -282,26 +277,10 @@ class _ArticleCardState extends State<ArticleCard> {
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
-                child: MarkdownBody(
-                  data: content,
-                  selectable: true,
-                  styleSheet: MarkdownStyleSheet(
-                    p: const TextStyle(fontSize: 16, height: 1.6),
-                    h1: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blue.shade800),
-                    h2: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
-                    h3: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue.shade600),
-                    blockquote: const TextStyle(
-                      fontSize: 16,
-                      fontStyle: FontStyle.italic,
-                      color: Colors.grey,
-                    ),
-                    blockquoteDecoration: BoxDecoration(
-                      border: Border(
-                        left: BorderSide(color: Colors.blue.shade200, width: 4),
-                      ),
-                      color: Colors.blue.shade50,
-                    ),
-                  ),
+                child: Text(
+                  content,
+                  style: const TextStyle(fontSize: 16, height: 1.6),
+                  textAlign: TextAlign.justify,
                 ),
               ),
             ),
