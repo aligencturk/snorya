@@ -21,19 +21,6 @@ class AppConstants {
     categoryCustom,
   ];
   
-  // Özel Kategoriler için Öneriler
-  static const List<String> suggestedCustomTopics = [
-    'Fenerbahçe',
-    'Galatasaray',
-    'Beşiktaş',
-    'Trabzonspor',
-    'İstanbul',
-    'Ankara',
-    'Türk Mutfağı',
-    'Türk Müziği',
-    'Antalya',
-    'Kapadokya',
-  ];
   
   // Wikipedia API Sabitleri
   static const String wikipediaApiBaseUrl = 'https://tr.wikipedia.org/w/api.php';

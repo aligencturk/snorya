@@ -117,7 +117,7 @@ class StorageService {
   /// Son seçilen özel konuyu getir
   Future<String> getLastCustomTopic() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString(AppConstants.cacheKeyLastCustomTopic) ?? AppConstants.suggestedCustomTopics.first;
+    return prefs.getString(AppConstants.cacheKeyLastCustomTopic) ?? '';
   }
   
   /// Özel konuları kaydet
@@ -129,7 +129,7 @@ class StorageService {
   /// Özel konuları getir
   Future<List<String>> getCustomTopics() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getStringList(AppConstants.cacheKeyCustomTopics) ?? AppConstants.suggestedCustomTopics;
+    return prefs.getStringList(AppConstants.cacheKeyCustomTopics) ?? [];
   }
   
   /// Özel konu ekle

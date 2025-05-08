@@ -26,7 +26,7 @@ class _ArticleCardState extends State<ArticleCard> {
     _pageController.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final String title = widget.article.title;
@@ -36,7 +36,7 @@ class _ArticleCardState extends State<ArticleCard> {
     final bool isFavorite = widget.article.isFavorite;
     
     return Container(
-      decoration: BoxDecoration(
+          decoration: BoxDecoration(
         color: Colors.black,
         image: DecorationImage(
           image: imageUrl.isNotEmpty
@@ -56,7 +56,7 @@ class _ArticleCardState extends State<ArticleCard> {
             _currentPageIndex = index;
           });
         },
-        children: [
+              children: [
           // İlk sayfa - Özet
           _buildSummaryPage(title, summary, isFavorite),
           
@@ -84,33 +84,33 @@ class _ArticleCardState extends State<ArticleCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
+                      children: [
                     // Makale başlığı
-                    Text(
+                        Text(
                       title,
-                      style: const TextStyle(
+                          style: const TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                            color: Colors.white,
                         shadows: [
                           Shadow(
                             color: Colors.black45,
                             blurRadius: 10,
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
+                  ),
                     const SizedBox(height: 16),
                     // Makale özeti
-                    Text(
+                Text(
                       summary,
                       style: TextStyle(
                         fontSize: 18,
                         color: Colors.white.withOpacity(0.9),
-                        shadows: [
-                          Shadow(
+                    shadows: [
+                      Shadow(
                             color: Colors.black26,
-                            blurRadius: 5,
+                        blurRadius: 5,
                           ),
                         ],
                       ),
@@ -171,17 +171,17 @@ class _ArticleCardState extends State<ArticleCard> {
                     ),
                   ),
                 ],
-              ),
-            ),
-          ),
-        ),
-        
+                      ),
+                    ),
+                  ),
+                ),
+                
         // Üst butonlar
         Positioned(
           top: 36,
           right: 20,
-          child: Row(
-            children: [
+                  child: Row(
+                    children: [
               // Yenile butonu
               Container(
                 decoration: BoxDecoration(
@@ -191,7 +191,7 @@ class _ArticleCardState extends State<ArticleCard> {
                 child: IconButton(
                   icon: const Icon(Icons.refresh, color: Colors.white),
                   onPressed: widget.onRefresh,
-                  tooltip: 'Yeni Makale',
+                        tooltip: 'Yeni Makale',
                 ),
               ),
               const SizedBox(width: 12),
@@ -208,9 +208,9 @@ class _ArticleCardState extends State<ArticleCard> {
                   ),
                   onPressed: widget.onFavoriteToggle,
                   tooltip: isFavorite ? 'Favorilerden Çıkar' : 'Favorilere Ekle',
+                  ),
                 ),
-              ),
-            ],
+              ],
           ),
         ),
       ],
@@ -269,9 +269,9 @@ class _ArticleCardState extends State<ArticleCard> {
                     ),
                     onPressed: widget.onFavoriteToggle,
                   ),
-                ],
-              ),
+              ],
             ),
+          ),
             
             // Metin scrollable alanı
             Expanded(

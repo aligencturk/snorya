@@ -13,7 +13,6 @@ class CustomTopicScreen extends StatefulWidget {
 class _CustomTopicScreenState extends State<CustomTopicScreen> {
   final TextEditingController _topicController = TextEditingController();
   final FocusNode _topicFocusNode = FocusNode();
-  bool _isEditing = false;
   
   @override
   void dispose() {
@@ -53,16 +52,16 @@ class _CustomTopicScreenState extends State<CustomTopicScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'İlgilendiğin Konular',
+                      'İstediğin Konuyu Keşfet',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 20,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'İstediğin konularda bilgiler al. Futbol takımı, şehir, müzik tarzı veya ilgilendiğin herhangi bir konu hakkında bilgi edinebilirsin.',
+                      'Futbol takımları, şehirler, müzik, tarih, bilim veya herhangi bir konu hakkında bilgi edinebilirsin. Sadece konuyu ekle ve keşfetmeye başla.',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.9),
                         fontSize: 14,
@@ -82,7 +81,7 @@ class _CustomTopicScreenState extends State<CustomTopicScreen> {
                         controller: _topicController,
                         focusNode: _topicFocusNode,
                         decoration: InputDecoration(
-                          hintText: 'Yeni bir konu ekle...',
+                          hintText: 'Yeni bir konu ekle veya ara...',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
@@ -110,6 +109,94 @@ class _CustomTopicScreenState extends State<CustomTopicScreen> {
                         foregroundColor: Colors.white,
                       ),
                     ),
+                  ],
+                ),
+              ),
+              
+              // Öneriler bölümü
+              Padding(
+                padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Önerilen Konular',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: viewModel.customTopics.map((topic) {
+                        final isAlreadyAdded = viewModel.customTopics.contains(topic);
+                        return ActionChip(
+                          label: Text(topic),
+                          avatar: Icon(
+                            isAlreadyAdded ? Icons.check : Icons.add,
+                            size: 16,
+                          ),
+                          backgroundColor: isAlreadyAdded 
+                            ? Colors.green.shade100
+                            : Colors.grey.shade200,
+                          onPressed: () {
+                            if (!isAlreadyAdded) {
+                              _addTopic(viewModel, topic);
+                            } else {
+                              _selectTopic(viewModel, topic);
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Başlık
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Text(
+                      'Konularım',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '(${viewModel.customTopics.length})',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (viewModel.customTopics.isNotEmpty)
+                      TextButton.icon(
+                        icon: const Icon(Icons.play_arrow, size: 18),
+                        label: Text(
+                          viewModel.customTopics.isEmpty 
+                            ? 'Konu ekle' 
+                            : 'Şimdi keşfet',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        onPressed: () {
+                          if (viewModel.customTopics.isNotEmpty) {
+                            if (viewModel.selectedCustomTopic.isEmpty) {
+                              _selectTopic(viewModel, viewModel.customTopics.first);
+                            } else {
+                              Navigator.pop(context);
+                            }
+                          }
+                        },
+                      ),
                   ],
                 ),
               ),
@@ -144,18 +231,31 @@ class _CustomTopicScreenState extends State<CustomTopicScreen> {
                                 child: Row(
                                   children: [
                                     Icon(
-                                      Icons.topic,
+                                      isSelected ? Icons.check_circle : Icons.topic,
                                       color: isSelected ? Colors.blue.shade700 : Colors.black54,
                                     ),
-                                    const SizedBox(width: 12),
+                                    const SizedBox(width: 16),
                                     Expanded(
-                                      child: Text(
-                                        topic,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                          color: isSelected ? Colors.blue.shade700 : Colors.black87,
-                                        ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            topic,
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                              color: isSelected ? Colors.blue.shade700 : Colors.black87,
+                                            ),
+                                          ),
+                                          if (isSelected)
+                                            const Text(
+                                              'Şu anda seçili',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                     ),
                                     IconButton(
@@ -163,6 +263,7 @@ class _CustomTopicScreenState extends State<CustomTopicScreen> {
                                       onPressed: () {
                                         _removeTopic(viewModel, topic);
                                       },
+                                      tooltip: 'Konuyu Sil',
                                     ),
                                   ],
                                 ),
@@ -203,7 +304,7 @@ class _CustomTopicScreenState extends State<CustomTopicScreen> {
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 40),
             child: Text(
-              'İlgilendiğiniz konuları ekleyerek daha fazla bilgi alabilirsiniz.',
+              'İlgilendiğin konuları ekleyerek sadece o konularla ilgili bilgiler alabilirsin.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
@@ -244,7 +345,7 @@ class _CustomTopicScreenState extends State<CustomTopicScreen> {
         content: Text('$topic eklendi'),
         behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
-          label: 'Seç',
+          label: 'Göster',
           onPressed: () {
             _selectTopic(viewModel, topic.trim());
           },
