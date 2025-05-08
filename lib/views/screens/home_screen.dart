@@ -360,6 +360,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Başlık - Sabit kalacak
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Row(
@@ -382,146 +383,159 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                   ),
                   Divider(color: Colors.white24),
-                  // Kategoriler başlığı
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      'Kategoriler',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                  
+                  // İçerik - Kaydırılabilir yapıldı
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Kategoriler başlığı
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              'Kategoriler',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          // Kategori listesi
+                          _buildCategoryTile(
+                            context, 
+                            AppConstants.categoryMixed, 
+                            Icons.shuffle, 
+                            viewModel.selectedCategory == AppConstants.categoryMixed,
+                            viewModel
+                          ),
+                          _buildCategoryTile(
+                            context, 
+                            AppConstants.categoryScience, 
+                            Icons.science, 
+                            viewModel.selectedCategory == AppConstants.categoryScience,
+                            viewModel
+                          ),
+                          _buildCategoryTile(
+                            context, 
+                            AppConstants.categoryHistory, 
+                            Icons.history_edu, 
+                            viewModel.selectedCategory == AppConstants.categoryHistory,
+                            viewModel
+                          ),
+                          _buildCategoryTile(
+                            context, 
+                            AppConstants.categoryTechnology, 
+                            Icons.computer, 
+                            viewModel.selectedCategory == AppConstants.categoryTechnology,
+                            viewModel
+                          ),
+                          _buildCategoryTile(
+                            context, 
+                            AppConstants.categoryCulture, 
+                            Icons.theater_comedy, 
+                            viewModel.selectedCategory == AppConstants.categoryCulture,
+                            viewModel
+                          ),
+                          _buildCategoryTile(
+                            context, 
+                            AppConstants.categoryCustom, 
+                            Icons.topic, 
+                            viewModel.selectedCategory == AppConstants.categoryCustom,
+                            viewModel
+                          ),
+                          Divider(color: Colors.white24),
+                          // Favoriler kısmı
+                          ListTile(
+                            leading: Icon(Icons.bookmark, color: Colors.amber),
+                            title: Text(
+                              'Favoriler',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _navigateToFavorites(context);
+                            },
+                          ),
+                          
+                          // Wikimedia Kaynakları başlığı
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              'Wikimedia Kaynakları',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          
+                          // WikiSpecies
+                          ListTile(
+                            leading: Icon(Icons.pets, color: Colors.green.shade300),
+                            title: Text(
+                              'WikiSpecies',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            subtitle: Text(
+                              'Türler hakkında bilgiler',
+                              style: TextStyle(color: Colors.white60, fontSize: 12),
+                            ),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _showWikiSpeciesDialog(context, viewModel);
+                            },
+                          ),
+                          
+                          // Commons
+                          ListTile(
+                            leading: Icon(Icons.image, color: Colors.amber.shade300),
+                            title: Text(
+                              'Wikimedia Commons',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            subtitle: Text(
+                              'Görsel ve medya içerikleri',
+                              style: TextStyle(color: Colors.white60, fontSize: 12),
+                            ),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _showCommonsDialog(context, viewModel);
+                            },
+                          ),
+                          
+                          // Gisburn Forest
+                          ListTile(
+                            leading: Icon(Icons.forest, color: Colors.green),
+                            title: Text(
+                              'Gisburn Forest',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            subtitle: Text(
+                              'Orman hakkında bilgiler',
+                              style: TextStyle(color: Colors.white60, fontSize: 12),
+                            ),
+                            onTap: () {
+                              Navigator.pop(context);
+                              viewModel.loadGisburnForestInfo();
+                            },
+                          ),
+                          
+                          // Telif hakkı - Scroll edilebilir alanda olmalı
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              '© ${DateTime.now().year} Snorya',
+                              style: TextStyle(color: Colors.white60),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
-                  // Kategori listesi
-                  _buildCategoryTile(
-                    context, 
-                    AppConstants.categoryMixed, 
-                    Icons.shuffle, 
-                    viewModel.selectedCategory == AppConstants.categoryMixed,
-                    viewModel
-                  ),
-                  _buildCategoryTile(
-                    context, 
-                    AppConstants.categoryScience, 
-                    Icons.science, 
-                    viewModel.selectedCategory == AppConstants.categoryScience,
-                    viewModel
-                  ),
-                  _buildCategoryTile(
-                    context, 
-                    AppConstants.categoryHistory, 
-                    Icons.history_edu, 
-                    viewModel.selectedCategory == AppConstants.categoryHistory,
-                    viewModel
-                  ),
-                  _buildCategoryTile(
-                    context, 
-                    AppConstants.categoryTechnology, 
-                    Icons.computer, 
-                    viewModel.selectedCategory == AppConstants.categoryTechnology,
-                    viewModel
-                  ),
-                  _buildCategoryTile(
-                    context, 
-                    AppConstants.categoryCulture, 
-                    Icons.theater_comedy, 
-                    viewModel.selectedCategory == AppConstants.categoryCulture,
-                    viewModel
-                  ),
-                  _buildCategoryTile(
-                    context, 
-                    AppConstants.categoryCustom, 
-                    Icons.topic, 
-                    viewModel.selectedCategory == AppConstants.categoryCustom,
-                    viewModel
-                  ),
-                  Divider(color: Colors.white24),
-                  // Favoriler kısmı
-                  ListTile(
-                    leading: Icon(Icons.bookmark, color: Colors.amber),
-                    title: Text(
-                      'Favoriler',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _navigateToFavorites(context);
-                    },
-                  ),
-                  
-                  // Wikimedia Kaynakları başlığı
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      'Wikimedia Kaynakları',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  
-                  // WikiSpecies
-                  ListTile(
-                    leading: Icon(Icons.pets, color: Colors.green.shade300),
-                    title: Text(
-                      'WikiSpecies',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    subtitle: Text(
-                      'Türler hakkında bilgiler',
-                      style: TextStyle(color: Colors.white60, fontSize: 12),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showWikiSpeciesDialog(context, viewModel);
-                    },
-                  ),
-                  
-                  // Commons
-                  ListTile(
-                    leading: Icon(Icons.image, color: Colors.amber.shade300),
-                    title: Text(
-                      'Wikimedia Commons',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    subtitle: Text(
-                      'Görsel ve medya içerikleri',
-                      style: TextStyle(color: Colors.white60, fontSize: 12),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showCommonsDialog(context, viewModel);
-                    },
-                  ),
-                  
-                  // Gisburn Forest
-                  ListTile(
-                    leading: Icon(Icons.forest, color: Colors.green),
-                    title: Text(
-                      'Gisburn Forest',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    subtitle: Text(
-                      'Orman hakkında bilgiler',
-                      style: TextStyle(color: Colors.white60, fontSize: 12),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      viewModel.loadGisburnForestInfo();
-                    },
-                  ),
-                  
-                  const Spacer(),
-                  // Alt kısım - Uygulama bilgisi
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      '© ${DateTime.now().year} Snorya',
-                      style: TextStyle(color: Colors.white60),
                     ),
                   ),
                 ],
