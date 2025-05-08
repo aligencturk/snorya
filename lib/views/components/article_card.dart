@@ -422,56 +422,52 @@ class _ArticleCardState extends State<ArticleCard> {
                     topLeft: Radius.circular(30),
                     topRight: Radius.circular(30),
                   ),
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    physics: const ClampingScrollPhysics(),
-                    shrinkWrap: true,
-                    children: [
-                      // Görsel
-                      if (imageUrl.isNotEmpty)
-                        Container(
-                          height: 200,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            image: DecorationImage(
-                              image: NetworkImage(imageUrl),
-                              fit: BoxFit.cover,
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Görsel
+                        if (imageUrl.isNotEmpty)
+                          Container(
+                            height: 200,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              image: DecorationImage(
+                                image: NetworkImage(imageUrl),
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
-                        ),
-                        
-                      // İçerik başlığı ve metin
-                      Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blueGrey.shade800,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              height: 4,
-                              width: 80,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [Colors.blue.shade300, Colors.blue.shade700],
+                          
+                        // İçerik başlığı ve metin
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blueGrey.shade800,
                                 ),
-                                borderRadius: BorderRadius.circular(2),
                               ),
-                            ),
-                            const SizedBox(height: 16),
-                            // Scroll edilebilir içerik alanı
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                maxHeight: 350,
+                              const SizedBox(height: 8),
+                              Container(
+                                height: 4,
+                                width: 80,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [Colors.blue.shade300, Colors.blue.shade700],
+                                  ),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
                               ),
-                              child: Text(
+                              const SizedBox(height: 16),
+                              // Tam içerik metni
+                              Text(
                                 content,
                                 style: const TextStyle(
                                   fontSize: 15,
@@ -480,17 +476,156 @@ class _ArticleCardState extends State<ArticleCard> {
                                 ),
                                 textAlign: TextAlign.justify,
                               ),
-                            ),
-                          ],
+                              
+                              // Ek görseller varsa göster
+                              if (widget.article.additionalImages != null && 
+                                  widget.article.additionalImages!.isNotEmpty)
+                                _buildAdditionalImages(widget.article.additionalImages!),
+                              
+                              // Metadata varsa göster
+                              if (widget.article.metadata != null)
+                                _buildMetadata(widget.article.metadata!),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+  
+  // Ek görselleri göster
+  Widget _buildAdditionalImages(List<Map<String, dynamic>> images) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        Text(
+          'Ek Görseller',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.blueGrey.shade800,
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 120,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: images.length,
+            itemBuilder: (context, index) {
+              final image = images[index];
+              return Container(
+                width: 160,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  image: DecorationImage(
+                    image: NetworkImage(image['url']),
+                    fit: BoxFit.cover,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 5,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.7),
+                      ],
+                    ),
+                  ),
+                  padding: const EdgeInsets.all(8),
+                  alignment: Alignment.bottomLeft,
+                  child: Text(
+                    image['title'].toString().replaceAll('File:', '').replaceAll('_', ' '),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+  
+  // Metadata bilgilerini göster
+  Widget _buildMetadata(Map<String, dynamic> metadata) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (metadata['originalSource'] != null)
+                _buildMetadataItem('Kaynak', metadata['originalSource']),
+              if (metadata['url'] != null)
+                _buildMetadataItem('URL', metadata['url']),
+              // Diğer metadata bilgileri
+              ...metadata.entries
+                  .where((e) => e.key != 'originalSource' && e.key != 'url')
+                  .map((e) => _buildMetadataItem(e.key, e.value.toString())),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+  
+  // Metadata öğesi
+  Widget _buildMetadataItem(String key, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$key: ',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.blueGrey.shade700,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: Colors.blueGrey.shade800,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
