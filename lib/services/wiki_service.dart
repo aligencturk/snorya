@@ -362,6 +362,188 @@ class WikiService {
     }
   }
   
+  /// WikiSpecies'den tür bilgilerini getirir
+  Future<Map<String, dynamic>> getWikiSpeciesInfo(String species) async {
+    try {
+      final Uri url = Uri.parse(
+        '${AppConstants.wikiSpeciesApiBaseUrl}?action=query&format=json&prop=extracts|pageimages&titles=${Uri.encodeComponent(species)}&pithumbsize=800&pilimit=1&exintro=1'
+      );
+      
+      final response = await http.get(url);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final pages = data['query']['pages'] as Map<String, dynamic>;
+        final pageId = pages.keys.first;
+        
+        if (pageId == '-1') {
+          return {'error': 'Tür bulunamadı'};
+        }
+        
+        final page = pages[pageId];
+        final Map<String, dynamic> result = {
+          'title': page['title'],
+          'content': page.containsKey('extract') ? page['extract'] : 'İçerik bulunamadı',
+          'imageUrl': '',
+        };
+        
+        if (page.containsKey('thumbnail')) {
+          result['imageUrl'] = page['thumbnail']['source'];
+        }
+        
+        return result;
+      } else {
+        return {'error': 'API hatası: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'error': 'Tür bilgileri getirilirken hata oluştu: $e'};
+    }
+  }
+  
+  /// Wikimedia Commons'tan belirli bir konuyla ilgili görselleri getirir
+  Future<List<Map<String, dynamic>>> getCommonsImages(String topic) async {
+    try {
+      final Uri url = Uri.parse(
+        '${AppConstants.commonsApiBaseUrl}?action=query&format=json&generator=search&gsrnamespace=6&gsrsearch=${Uri.encodeComponent(topic)}&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=800&gsrlimit=10'
+      );
+      
+      final response = await http.get(url);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (!data.containsKey('query') || !data['query'].containsKey('pages')) {
+          return [];
+        }
+        
+        final pages = data['query']['pages'] as Map<String, dynamic>;
+        final List<Map<String, dynamic>> images = [];
+        
+        for (final page in pages.values) {
+          if (page.containsKey('imageinfo') && page['imageinfo'].isNotEmpty) {
+            final imageInfo = page['imageinfo'][0];
+            final metadata = imageInfo.containsKey('extmetadata') ? imageInfo['extmetadata'] : {};
+            
+            final Map<String, dynamic> image = {
+              'title': page['title'],
+              'url': imageInfo['url'],
+              'description': metadata.containsKey('ImageDescription') ? metadata['ImageDescription']['value'] : '',
+              'author': metadata.containsKey('Artist') ? metadata['Artist']['value'] : '',
+              'license': metadata.containsKey('License') ? metadata['License']['value'] : '',
+            };
+            
+            images.add(image);
+          }
+        }
+        
+        return images;
+      } else {
+        return [];
+      }
+    } catch (e) {
+      print('Commons görselleri getirilirken hata: $e');
+      return [];
+    }
+  }
+  
+  /// Gisburn Forest hakkında bilgileri getirir
+  Future<Map<String, dynamic>> getGisburnForestInfo() async {
+    try {
+      const String forestTitle = 'Gisburn Forest';
+      final Uri url = Uri.parse(
+        '${AppConstants.wikipediaEnApiBaseUrl}?action=query&format=json&prop=extracts|pageimages&titles=${Uri.encodeComponent(forestTitle)}&pithumbsize=800&pilimit=1&exintro=0&explaintext=1'
+      );
+      
+      final response = await http.get(url);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final pages = data['query']['pages'] as Map<String, dynamic>;
+        final pageId = pages.keys.first;
+        
+        if (pageId == '-1') {
+          // İngilizce bulunamadıysa Türkçe'yi dene
+          return await _searchWikipedia('Gisburn Ormanı');
+        }
+        
+        final page = pages[pageId];
+        final Map<String, dynamic> result = {
+          'title': page['title'],
+          'content': page.containsKey('extract') ? page['extract'] : 'İçerik bulunamadı',
+          'imageUrl': '',
+        };
+        
+        if (page.containsKey('thumbnail')) {
+          result['imageUrl'] = page['thumbnail']['source'];
+        }
+        
+        // Commons'tan görsel bilgileri ekle
+        final List<Map<String, dynamic>> commonsImages = await getCommonsImages('Gisburn Forest');
+        if (commonsImages.isNotEmpty) {
+          result['commonsImages'] = commonsImages;
+        }
+        
+        return result;
+      } else {
+        return {'error': 'API hatası: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'error': 'Orman bilgileri getirilirken hata oluştu: $e'};
+    }
+  }
+  
+  /// Wikipedia'da arama yapar ve ilk sonucu döndürür
+  Future<Map<String, dynamic>> _searchWikipedia(String query) async {
+    try {
+      final Uri searchUrl = Uri.parse(
+        '${AppConstants.wikipediaApiBaseUrl}?action=query&format=json&list=search&srsearch=${Uri.encodeComponent(query)}&srlimit=1'
+      );
+      
+      final searchResponse = await http.get(searchUrl);
+      
+      if (searchResponse.statusCode == 200) {
+        final searchData = json.decode(searchResponse.body);
+        final searchResults = searchData['query']['search'] as List;
+        
+        if (searchResults.isEmpty) {
+          return {'error': 'Sonuç bulunamadı'};
+        }
+        
+        final String title = searchResults[0]['title'];
+        
+        // Makale içeriğini al
+        final Uri contentUrl = Uri.parse(
+          '${AppConstants.wikipediaApiBaseUrl}?action=query&format=json&prop=extracts|pageimages&titles=${Uri.encodeComponent(title)}&pithumbsize=800&pilimit=1&exintro=0&explaintext=1'
+        );
+        
+        final contentResponse = await http.get(contentUrl);
+        
+        if (contentResponse.statusCode == 200) {
+          final contentData = json.decode(contentResponse.body);
+          final pages = contentData['query']['pages'] as Map<String, dynamic>;
+          final pageId = pages.keys.first;
+          final page = pages[pageId];
+          
+          final Map<String, dynamic> result = {
+            'title': page['title'],
+            'content': page.containsKey('extract') ? page['extract'] : 'İçerik bulunamadı',
+            'imageUrl': '',
+          };
+          
+          if (page.containsKey('thumbnail')) {
+            result['imageUrl'] = page['thumbnail']['source'];
+          }
+          
+          return result;
+        }
+      }
+      
+      return {'error': 'Arama sonuçları getirilirken hata oluştu'};
+    } catch (e) {
+      return {'error': 'Arama yapılırken hata oluştu: $e'};
+    }
+  }
+  
   /// Kategorideki kullanılmış başlıkları temizle
   void clearUsedTitles(String category) {
     if (_usedTitles.containsKey(category)) {

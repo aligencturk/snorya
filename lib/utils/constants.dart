@@ -24,6 +24,13 @@ class AppConstants {
   
   // Wikipedia API Sabitleri
   static const String wikipediaApiBaseUrl = 'https://tr.wikipedia.org/w/api.php';
+  static const String wikipediaEnApiBaseUrl = 'https://en.wikipedia.org/w/api.php';
+  
+  // Wikimedia API Sabitleri
+  static const String wikiSpeciesApiBaseUrl = 'https://species.wikimedia.org/w/api.php';
+  static const String commonsApiBaseUrl = 'https://commons.wikimedia.org/w/api.php';
+  static const String wikiDataApiBaseUrl = 'https://www.wikidata.org/w/api.php';
+  static const String wikiSourceApiBaseUrl = 'https://wikisource.org/w/api.php';
   
   // Gemini Prompt
   static const String geminiPrompt = 
