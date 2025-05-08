@@ -1,16 +1,64 @@
-# snorya
+# Snorya
 
-A new Flutter project.
+Snorya, Wikipedia makalelerini Gemini AI ile özetleyip kullanıcılara sunan bir Flutter uygulamasıdır. TikTok tarzı dikey kaydırmalı bir arayüzle kullanıcılar farklı kategorilerdeki makaleleri keşfedebilir, favorilere ekleyebilir ve paylaşabilirler.
 
-## Getting Started
+## Özellikler
 
-This project is a starting point for a Flutter application.
+- TikTok tarzı dikey kaydırma ile makale keşfi
+- Wikipedia'dan rastgele makaleleri otomatik yükleme
+- Gemini AI ile makaleleri özetleme
+- Kategori bazlı içerik seçimi (Bilim, Tarih, Teknoloji, Kültür, Karışık)
+- Favori makaleleri kaydetme ve yönetme
+- Makaleleri paylaşma
 
-A few resources to get you started if this is your first Flutter project:
+## Kurulum
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+1. Projeyi klonlayın:
+```
+git clone https://github.com/kullaniciadi/snorya.git
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+2. Bağımlılıkları yükleyin:
+```
+flutter pub get
+```
+
+3. `lib/utils/constants.dart` dosyasında `geminiApiKey` değişkenini kendi Gemini API anahtarınızla değiştirin.
+
+4. Uygulamayı çalıştırın:
+```
+flutter run
+```
+
+## Proje Yapısı
+
+Proje MVVM (Model-View-ViewModel) mimarisi kullanılarak yapılandırılmıştır:
+
+- **models/**: Veri modellerini içerir
+- **viewmodels/**: İş mantığını ve durum yönetimini içerir
+- **views/**: Kullanıcı arayüzü bileşenlerini içerir
+  - **components/**: Yeniden kullanılabilir UI bileşenleri
+  - **screens/**: Ekran bileşenleri
+- **services/**: API ve depolama işlemlerini içerir
+- **utils/**: Yardımcı fonksiyonlar ve sabitler
+
+## Kullanılan Teknolojiler
+
+- Flutter
+- Provider (Durum yönetimi)
+- HTTP (API istekleri)
+- Gemini API (Makale özetleme)
+- SharedPreferences (Yerel depolama)
+- CachedNetworkImage (Görsel önbelleğe alma)
+
+## Gelecek Geliştirmeler
+
+- Kullanıcı hesapları ve bulut senkronizasyonu
+- Makale geçmişi
+- Daha gelişmiş kategori seçenekleri
+- Karanlık mod
+- Daha fazla özelleştirme seçeneği
+
+## Lisans
+
+Bu proje MIT lisansı altında lisanslanmıştır. Daha fazla bilgi için [LICENSE](LICENSE) dosyasına bakın.
