@@ -492,7 +492,8 @@ class _ArticleCardState extends State<ArticleCard> {
                               
                               // Ek görseller varsa göster
                               if (widget.article.additionalImages != null && 
-                                  widget.article.additionalImages!.isNotEmpty)
+                                  widget.article.additionalImages!.isNotEmpty &&
+                                  widget.article.additionalImages is List)
                                 _buildAdditionalImages(widget.article.additionalImages!),
                               
                               // Metadata varsa göster
@@ -515,109 +516,136 @@ class _ArticleCardState extends State<ArticleCard> {
   
   // Ek görselleri göster
   Widget _buildAdditionalImages(List<Map<String, dynamic>> images) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 24),
-        Text(
-          'Ek Görseller',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.blueGrey.shade800,
+    try {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 24),
+          Text(
+            'Ek Görseller',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.blueGrey.shade800,
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 120,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: images.length,
-            itemBuilder: (context, index) {
-              final image = images[index];
-              return Container(
-                width: 160,
-                margin: const EdgeInsets.only(right: 12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  image: DecorationImage(
-                    image: NetworkImage(image['url']),
-                    fit: BoxFit.cover,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 5,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-                child: Container(
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 120,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: images.length,
+              itemBuilder: (context, index) {
+                final image = images[index];
+                if (image is! Map<String, dynamic>) {
+                  return const SizedBox.shrink();
+                }
+                
+                final String url = image['url'] ?? '';
+                final String title = image['title']?.toString() ?? '';
+                
+                if (url.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                
+                return Container(
+                  width: 160,
+                  margin: const EdgeInsets.only(right: 12),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.7),
-                      ],
+                    image: DecorationImage(
+                      image: NetworkImage(url),
+                      fit: BoxFit.cover,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 5,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.7),
+                        ],
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(8),
+                    alignment: Alignment.bottomLeft,
+                    child: Text(
+                      title.replaceAll('File:', '').replaceAll('_', ' '),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  padding: const EdgeInsets.all(8),
-                  alignment: Alignment.bottomLeft,
-                  child: Text(
-                    image['title'].toString().replaceAll('File:', '').replaceAll('_', ' '),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
+    } catch (e) {
+      // Herhangi bir hata durumunda boş bir widget döndür
+      return const SizedBox.shrink();
+    }
   }
   
   // Metadata bilgilerini göster
   Widget _buildMetadata(Map<String, dynamic> metadata) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.grey.shade300),
+    try {
+      if (metadata.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (metadata['originalSource'] != null)
+                  _buildMetadataItem('Kaynak', metadata['originalSource'].toString()),
+                if (metadata['url'] != null)
+                  _buildMetadataItem('URL', metadata['url'].toString()),
+                // Diğer metadata bilgileri
+                ...metadata.entries
+                    .where((e) => e.key != 'originalSource' && e.key != 'url' && e.value != null)
+                    .map((e) => _buildMetadataItem(e.key, e.value.toString())),
+              ],
+            ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (metadata['originalSource'] != null)
-                _buildMetadataItem('Kaynak', metadata['originalSource']),
-              if (metadata['url'] != null)
-                _buildMetadataItem('URL', metadata['url']),
-              // Diğer metadata bilgileri
-              ...metadata.entries
-                  .where((e) => e.key != 'originalSource' && e.key != 'url')
-                  .map((e) => _buildMetadataItem(e.key, e.value.toString())),
-            ],
-          ),
-        ),
-      ],
-    );
+        ],
+      );
+    } catch (e) {
+      // Herhangi bir hata durumunda boş bir widget döndür
+      return const SizedBox.shrink();
+    }
   }
   
   // Metadata öğesi
   Widget _buildMetadataItem(String key, String value) {
+    if (value.isEmpty) return const SizedBox.shrink();
+    
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
