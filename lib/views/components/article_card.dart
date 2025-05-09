@@ -5,14 +5,14 @@ import '../../models/article.dart';
 class ArticleCard extends StatefulWidget {
   final Article article;
   final VoidCallback onFavoriteToggle;
-  final VoidCallback onRefresh;
+  final VoidCallback? onRefresh;
   final VoidCallback? onNavigateToFavorites;
   
   const ArticleCard({
     super.key,
     required this.article,
     required this.onFavoriteToggle,
-    required this.onRefresh,
+    this.onRefresh,
     this.onNavigateToFavorites,
   });
 
@@ -297,29 +297,6 @@ class _ArticleCardState extends State<ArticleCard> {
                       icon: const Icon(Icons.star, color: Colors.amber, size: 20),
                       onPressed: widget.onNavigateToFavorites,
                       tooltip: 'Favoriler',
-                      padding: EdgeInsets.zero,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Yenile butonu
-                  Container(
-                    height: 40,
-                    width: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          spreadRadius: 1,
-                          blurRadius: 5,
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.refresh, color: Colors.white, size: 20),
-                      onPressed: widget.onRefresh,
-                      tooltip: 'Yeni Makale',
                       padding: EdgeInsets.zero,
                     ),
                   ),
