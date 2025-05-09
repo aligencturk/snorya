@@ -56,6 +56,4 @@ class AppConstants {
   // Fallback Mesajları
   static const String fallbackSummary = 'Bu makalenin özeti şu anda mevcut değil. Lütfen daha sonra tekrar deneyin.';
   static const String fallbackImageUrl = 'assets/images/placeholder.png';
-  static const String fallbackMovieImageUrl = 'assets/images/movie_placeholder.png';
-  static const String fallbackTvImageUrl = 'assets/images/tv_placeholder.png';
 } 

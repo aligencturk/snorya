@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../models/movie.dart';
 import '../services/gemini_service.dart';
@@ -190,13 +191,9 @@ class MovieViewModel extends ChangeNotifier {
         posterUrl = await _wikiService.searchImage(searchQuery, isEnglish: false);
       }
       
-      // 5. Fallback görsel kullan
+      // 5. Yedek görsel kullan (resim bulunamadıysa)
       if (posterUrl.isEmpty) {
-        if (movie.type == 'movie') {
-          posterUrl = AppConstants.fallbackMovieImageUrl;
-        } else {
-          posterUrl = AppConstants.fallbackTvImageUrl;
-        }
+        posterUrl = AppConstants.fallbackImageUrl;
       }
       
       return movie.copyWith(posterUrl: posterUrl);
@@ -240,7 +237,62 @@ class MovieViewModel extends ChangeNotifier {
       final List<Movie> newMovies = await _loadMoviesForCategory(_selectedCategory, _page);
       
       if (newMovies.isNotEmpty) {
-        _movies.addAll(newMovies);
+        // Mevcut başlıkları bir sete dönüştür (duplikasyon kontrolü için)
+        final Set<String> existingTitles = _movies.map((movie) => movie.title.toLowerCase()).toSet();
+        
+        // Duplikasyonsuz filmleri filtrele
+        final List<Movie> nonDuplicateMovies = newMovies.where((movie) {
+          return !existingTitles.contains(movie.title.toLowerCase());
+        }).toList();
+        
+        // Eğer duplikasyonsuz film kalmadıysa, farklı bir kategori veya sayfa dene
+        if (nonDuplicateMovies.isEmpty) {
+          _page++; // Bir sonraki sayfayı dene
+          final List<Movie> alternativeMovies = await _loadMoviesForCategory(_selectedCategory, _page);
+          
+          // Yine duplikasyon kontrolü yap
+          final List<Movie> nonDuplicateAlternatives = alternativeMovies.where((movie) {
+            return !existingTitles.contains(movie.title.toLowerCase());
+          }).toList();
+          
+          if (nonDuplicateAlternatives.isNotEmpty) {
+            _movies.addAll(nonDuplicateAlternatives);
+          } else {
+            // Hâlâ duplike içerik geliyorsa, yeni bir kategori dene
+            final List<String> alternativeCategories = [
+              'bilim kurgu',
+              'komedi',
+              'aksiyon',
+              'macera',
+              'drama',
+              'fantastik',
+              'korku',
+              'gerilim',
+              'animasyon',
+              'ödüllü'
+            ];
+            
+            // Mevcut kategoriden farklı bir kategori seç
+            String newCategory = _selectedCategory;
+            while (newCategory == _selectedCategory && alternativeCategories.isNotEmpty) {
+              final random = new Random();
+              final index = random.nextInt(alternativeCategories.length);
+              newCategory = alternativeCategories[index];
+              alternativeCategories.removeAt(index);
+            }
+            
+            if (newCategory != _selectedCategory) {
+              final List<Movie> categoryMovies = await _loadMoviesForCategory(newCategory, 1);
+              final List<Movie> uniqueCategoryMovies = categoryMovies.where((movie) {
+                return !existingTitles.contains(movie.title.toLowerCase());
+              }).toList();
+              
+              _movies.addAll(uniqueCategoryMovies);
+            }
+          }
+        } else {
+          _movies.addAll(nonDuplicateMovies);
+        }
       }
       
       _state = MovieLoadingState.loaded;
@@ -397,7 +449,81 @@ class MovieViewModel extends ChangeNotifier {
         
         final List<Future<Movie>> posterFutures = [];
         
-        for (var movieJson in moviesJson) {
+        // Mevcut film/dizi başlıklarını al (duplikasyon kontrolü için)
+        final Set<String> existingTitles = _filteredMovies.map((movie) => movie.title.toLowerCase()).toSet();
+        
+        // Duplikasyonsuz film/dizileri seç
+        List<dynamic> uniqueMoviesJson = moviesJson.where((movieJson) {
+          final String title = movieJson['title']?.toString().toLowerCase() ?? '';
+          return title.isNotEmpty && !existingTitles.contains(title);
+        }).toList();
+        
+        // Eğer duplikasyonsuz içerik kalmadıysa, sorguyu değiştir ve tekrar dene
+        if (uniqueMoviesJson.isEmpty) {
+          // Alternatif arama sorguları oluştur
+          final List<String> alternativeQueries = [
+            '$_searchQuery benzeri yeni yapımlar',
+            '$_searchQuery alternatifi',
+            '$_searchQuery gibi az bilinen yapımlar',
+            '$_searchQuery tarzında farklı yapımlar',
+            'popüler $_searchQuery benzeri'
+          ];
+          
+          // Rastgele bir sorgu seç
+          final random = Random();
+          final String altQuery = alternativeQueries[random.nextInt(alternativeQueries.length)];
+          
+          // Yeni bir sorgu oluştur
+          String altPrompt = 'Lütfen "$altQuery" benzer olan 10 adet ';
+          
+          if (_selectedType == 'movie') {
+            altPrompt += 'film ';
+          } else if (_selectedType == 'tv') {
+            altPrompt += 'dizi ';
+          } else {
+            altPrompt += 'dizi ve film ';
+          }
+          
+          if (_selectedGenre != null) {
+            altPrompt += 'türü $_selectedGenre olan ';
+          }
+          
+          altPrompt += 'öner. JSON formatında dön: [{"id": "1", "title": "Film Adı", "overview": "Özet", '
+              '"type": "movie/tv", "genres": ["Tür1", "Tür2"], "director": "Yönetmen", '
+              '"releaseDate": "Tarih", "rating": 8.5}]';
+          
+          final altResponse = await _geminiService.generateContent(altPrompt);
+          
+          if (altResponse.isNotEmpty) {
+            // JSON formatını ayıkla
+            String altJsonText = altResponse;
+            
+            final int altStartIndex = altJsonText.indexOf('[');
+            final int altEndIndex = altJsonText.lastIndexOf(']') + 1;
+            
+            if (altStartIndex >= 0 && altEndIndex > altStartIndex) {
+              altJsonText = altJsonText.substring(altStartIndex, altEndIndex);
+            }
+            
+            final List<dynamic> altMoviesJson = json.decode(altJsonText);
+            
+            // Duplikasyonsuz film/dizileri seç
+            uniqueMoviesJson = altMoviesJson.where((movieJson) {
+              final String title = movieJson['title']?.toString().toLowerCase() ?? '';
+              return title.isNotEmpty && !existingTitles.contains(title);
+            }).toList();
+          }
+        }
+        
+        // Eğer alternatif sorguda da sonuç bulunamadıysa boş liste döndür
+        if (uniqueMoviesJson.isEmpty) {
+          _state = MovieLoadingState.loaded;
+          notifyListeners();
+          return;
+        }
+        
+        // Benzersiz film/dizileri işle
+        for (var movieJson in uniqueMoviesJson) {
           final movie = Movie.fromJson(movieJson);
           
           // Favori durumunu kontrol et

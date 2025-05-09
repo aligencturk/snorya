@@ -1106,8 +1106,8 @@ class _GameCardState extends State<GameCard> with SingleTickerProviderStateMixin
           ),
           const SizedBox(height: 16),
           
-          // Değerlendirmeleri listele
-          ...reviews.map((review) => _buildReviewItem(review)).toList(),
+          // Sadece ilk değerlendirmeyi göster
+          _buildReviewItem(reviews.first),
           
         ],
       ),

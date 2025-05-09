@@ -251,8 +251,8 @@ class _GameRecommendationScreenState extends State<GameRecommendationScreen> wit
                     final game = viewModel.games[index];
                     
                     // Sonsuz kaydırma kontrolü
-                    if (index == viewModel.games.length - 1) {
-                      // Son elemana gelince, otomatik olarak daha fazla içerik yükle
+                    if (index >= viewModel.games.length - 3) {
+                      // Son elemandan 3 oyun önce, otomatik olarak daha fazla içerik yükle
                       Future.microtask(() {
                         viewModel.checkAndLoadMoreGames(index);
                       });
