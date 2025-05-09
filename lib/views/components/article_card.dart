@@ -6,12 +6,14 @@ class ArticleCard extends StatefulWidget {
   final Article article;
   final VoidCallback onFavoriteToggle;
   final VoidCallback onRefresh;
+  final VoidCallback? onNavigateToFavorites;
   
   const ArticleCard({
     super.key,
     required this.article,
     required this.onFavoriteToggle,
     required this.onRefresh,
+    this.onNavigateToFavorites,
   });
 
   @override
@@ -276,6 +278,29 @@ class _ArticleCardState extends State<ArticleCard> {
               right: 20,
               child: Row(
                 children: [
+                  // Favoriler sayfasına git butonu
+                  Container(
+                    height: 40,
+                    width: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.4),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          spreadRadius: 1,
+                          blurRadius: 5,
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.star, color: Colors.amber, size: 20),
+                      onPressed: widget.onNavigateToFavorites,
+                      tooltip: 'Favoriler',
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   // Yenile butonu
                   Container(
                     height: 40,
@@ -400,6 +425,34 @@ class _ArticleCardState extends State<ArticleCard> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  // Favorilere Git butonu
+                  Container(
+                    height: 40,
+                    width: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.4),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          spreadRadius: 1,
+                          blurRadius: 5,
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.star,
+                        color: Colors.amber,
+                        size: 20,
+                      ),
+                      onPressed: widget.onNavigateToFavorites,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   // Favori butonu
                   Container(
                     height: 40,

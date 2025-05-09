@@ -173,6 +173,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       article: article,
                       onFavoriteToggle: () => viewModel.toggleFavorite(),
                       onRefresh: () => _handleRefresh(viewModel),
+                      onNavigateToFavorites: () => _navigateToFavorites(context),
                     ),
                   );
                 },
