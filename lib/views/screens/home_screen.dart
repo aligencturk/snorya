@@ -15,11 +15,15 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
-  final PageController _pageController = PageController();
+  final PageController _pageController = PageController(
+    viewportFraction: 1.0, // Tam ekran gösterim
+    keepPage: true, // Sayfa durumunu koru
+  );
   late AnimationController _animationController;
   late Animation<double> _animation;
   bool _isScrolling = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _isLoadingSimilarContent = false; // Benzer içerik yükleme durumu
 
   @override
   void initState() {
@@ -128,155 +132,190 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           }
           
           // İçerik yüklendiyse TikTok tarzı sonsuz scroll göster
-          return Stack(
-            children: [
-              // Makale sayfaları
-              PageView.builder(
-                controller: _pageController,
-                scrollDirection: Axis.vertical,
-                onPageChanged: (index) {
-                  // Kaydırma durumunu güncelle
-                  _isScrolling = true;
-                  
-                  // AnimationController'ı yeniden başlat
-                  _animationController.reset();
-                  _animationController.forward();
-                  
-                  // ViewModel'e bildir ve gerekliyse yeni içerik yüklemesini sağla
-                  viewModel.checkAndLoadMoreArticles(index);
-                  
-                  // Kısa bir süre sonra kaydırma durumunu kapat
-                  Future.delayed(const Duration(milliseconds: 200), () {
-                    if (mounted) {
-                      setState(() {
-                        _isScrolling = false;
+          return Container(
+            // Arka plan rengi siyah olacak, beyaz flash önlenir
+            color: Colors.black,
+            child: Stack(
+              children: [
+                // Makale sayfaları
+                PageView.builder(
+                  controller: _pageController,
+                  scrollDirection: Axis.vertical,
+                  // Sayfa geçişini yumuşatmak için physics ekleyelim
+                  physics: const ClampingScrollPhysics(),
+                  onPageChanged: (index) {
+                    // Kaydırma durumunu güncelle
+                    _isScrolling = true;
+                    
+                    // AnimationController'ı yeniden başlat
+                    _animationController.reset();
+                    _animationController.forward();
+                    
+                    // ViewModel'e bildir ve gerekliyse yeni içerik yüklemesini sağla
+                    viewModel.checkAndLoadMoreArticles(index);
+                    
+                    // Kısa bir süre sonra kaydırma durumunu kapat
+                    Future.delayed(const Duration(milliseconds: 200), () {
+                      if (mounted) {
+                        setState(() {
+                          _isScrolling = false;
+                        });
+                      }
+                    });
+                  },
+                  itemCount: viewModel.articles.length,
+                  itemBuilder: (context, index) {
+                    // Makale kartı
+                    final article = viewModel.articles[index];
+                    
+                    // Sonsuz kaydırma kontrolü
+                    if (index == viewModel.articles.length - 1) {
+                      // Son elemana gelince, otomatik olarak daha fazla içerik yükle
+                      Future.microtask(() {
+                        viewModel.checkAndLoadMoreArticles(index);
                       });
                     }
-                  });
-                },
-                itemCount: viewModel.articles.length,
-                itemBuilder: (context, index) {
-                  // Makale kartı
-                  final article = viewModel.articles[index];
-                  
-                  // Sonsuz kaydırma kontrolü
-                  if (index == viewModel.articles.length - 1) {
-                    // Son elemana gelince, otomatik olarak daha fazla içerik yükle
-                    Future.microtask(() {
-                      viewModel.checkAndLoadMoreArticles(index);
-                    });
-                  }
-                  
-                  return FadeTransition(
-                    opacity: _animation,
-                    child: ArticleCard(
-                      article: article,
-                      onFavoriteToggle: () {
-                        // Favori durumunu değiştir
-                        viewModel.toggleFavorite();
-                        
-                        // Kullanıcıya görsel geri bildirim
-                        final message = article.isFavorite ? 'Favorilerden kaldırıldı' : 'Favorilere eklendi';
-                        final icon = article.isFavorite ? Icons.bookmark_remove : Icons.bookmark_add;
-                        
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(
-                              children: [
-                                Icon(icon, color: Colors.amber),
-                                const SizedBox(width: 12),
-                                Text(message),
-                              ],
+                    
+                    return FadeTransition(
+                      opacity: _animation,
+                      child: ArticleCard(
+                        article: article,
+                        onFavoriteToggle: () {
+                          // Favori durumunu değiştir
+                          viewModel.toggleFavorite();
+                          
+                          // Kullanıcıya görsel geri bildirim
+                          final message = article.isFavorite ? 'Favorilerden kaldırıldı' : 'Favorilere eklendi';
+                          final icon = article.isFavorite ? Icons.bookmark_remove : Icons.bookmark_add;
+                          
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  Icon(icon, color: Colors.amber),
+                                  const SizedBox(width: 12),
+                                  Text(message),
+                                ],
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                              duration: const Duration(milliseconds: 1500),
                             ),
-                            behavior: SnackBarBehavior.floating,
-                            duration: const Duration(milliseconds: 1500),
-                          ),
-                        );
-                      },
-                      onNavigateToFavorites: () {
-                        // Favoriler sayfasına git
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const FavoritesScreen(),
-                          ),
-                        );
-                      },
-                      onRefresh: () {
-                        // Yeni bir makale yükle
-                        viewModel.refreshArticle();
-                      },
-                      onVerticalScroll: () {
-                        // Bir sonraki makaleye kaydır
-                        if (_pageController.page!.toInt() < viewModel.articles.length - 1) {
-                          _pageController.nextPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOutQuint,
                           );
-                        }
-                      },
-                      onLoadSimilarArticle: () {
-                        // Benzer içerik yükle
-                        viewModel.loadSimilarArticle().then((_) {
-                          // Yeni makaleye animasyonlu geçiş yap
-                          if (viewModel.articles.isNotEmpty) {
-                            // Son makaleye (yeni eklenen) geçiş yap
-                            _animationController.reset();
+                        },
+                        onNavigateToFavorites: () {
+                          // Favoriler sayfasına git
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const FavoritesScreen(),
+                            ),
+                          );
+                        },
+                        onRefresh: () {
+                          // Yeni bir makale yükle
+                          viewModel.refreshArticle();
+                        },
+                        onVerticalScroll: () {
+                          // Bir sonraki makaleye kaydır
+                          if (_pageController.page!.toInt() < viewModel.articles.length - 1) {
+                            _pageController.nextPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeOutQuint,
+                            );
+                          }
+                        },
+                        onLoadSimilarArticle: () {
+                          if (_isLoadingSimilarContent) return; // Yükleme devam ediyorsa çıkış yap
+                          
+                          setState(() {
+                            _isLoadingSimilarContent = true; // Yükleme durumunu güncelle
+                          });
+                          
+                          // Benzer içerik yükleniyor bildirimi göster
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text('Benzer içerik aranıyor...'),
+                                ],
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                              duration: const Duration(milliseconds: 2000),
+                            ),
+                          );
+                          
+                          // Benzer içerik yükle
+                          viewModel.loadSimilarArticle().then((_) {
+                            if (viewModel.articles.isNotEmpty) {
+                              // Başarılı bildirimi göster
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Row(
+                                    children: [
+                                      Icon(Icons.check_circle, color: Colors.green),
+                                      const SizedBox(width: 12),
+                                      Text('Benzer içerik bulundu!'),
+                                    ],
+                                  ),
+                                  behavior: SnackBarBehavior.floating,
+                                  duration: const Duration(milliseconds: 1500),
+                                ),
+                              );
+                              
+                              // Animasyon için bir geçiş efekti ekleyelim
+                              // Önce mevcut animasyonu sıfırla
+                              _animationController.reset();
+                              
+                              // Sayfa geçişi - yüksek öncelikli animasyon kuyruğu kullanarak
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                _pageController.animateToPage(
+                                  viewModel.articles.length - 1,
+                                  duration: const Duration(milliseconds: 700),
+                                  curve: Curves.fastLinearToSlowEaseIn, // Özel eğri - yumuşak geçiş
+                                ).then((_) {
+                                  // Sayfa geçişi tamamlandıktan sonra içerik animasyonunu başlat
+                                  _animationController.forward();
+                                  
+                                  // Yükleme durumunu güncelle
+                                  setState(() {
+                                    _isLoadingSimilarContent = false;
+                                  });
+                                });
+                              });
+                            } else {
+                              // Hata durumunda yükleme durumunu güncelle
+                              setState(() {
+                                _isLoadingSimilarContent = false;
+                              });
+                            }
+                          }).catchError((error) {
+                            // Hata durumunda yükleme durumunu güncelle
+                            setState(() {
+                              _isLoadingSimilarContent = false;
+                            });
                             
-                            // Sayfa geçişi yapılıyor bildirimi
+                            // Hata bildirimi göster
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Row(
-                                  children: [
-                                    Icon(Icons.check_circle, color: Colors.green),
-                                    const SizedBox(width: 12),
-                                    Text('Benzer içerik bulundu!'),
-                                  ],
-                                ),
+                                content: Text('Benzer içerik getirilirken hata oluştu'),
                                 behavior: SnackBarBehavior.floating,
+                                backgroundColor: Colors.red,
                                 duration: const Duration(milliseconds: 1500),
                               ),
                             );
-                            
-                            // Sayfa geçişi animasyonu
-                            Future.delayed(const Duration(milliseconds: 300), () {
-                              _pageController.animateToPage(
-                                viewModel.articles.length - 1,
-                                duration: const Duration(milliseconds: 800),
-                                curve: Curves.easeOutQuint,
-                              );
-                              
-                              // Sayfa geçtikten sonra buton animasyonunu başlat
-                              Future.delayed(const Duration(milliseconds: 800), () {
-                                _animationController.forward();
-                              });
-                            });
-                          }
-                        });
-                        
-                        // Yükleniyor bildirimi göster
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(
-                              children: [
-                                CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 12),
-                                Text('Benzer içerik aranıyor...'),
-                              ],
-                            ),
-                            behavior: SnackBarBehavior.floating,
-                            duration: const Duration(milliseconds: 2000),
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-            ],
+                          });
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
           );
         },
       ),
