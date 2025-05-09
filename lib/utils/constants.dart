@@ -9,6 +9,8 @@ class AppConstants {
   static const String categoryHistory = 'Tarih';
   static const String categoryTechnology = 'Teknoloji';
   static const String categoryCulture = 'Kültür';
+  static const String categoryGames = 'Oyun';
+  static const String categoryMoviesTv = 'Dizi/Film';
   static const String categoryMixed = 'Karışık';
   static const String categoryCustom = 'Özel';
   
@@ -18,6 +20,8 @@ class AppConstants {
     categoryHistory,
     categoryTechnology,
     categoryCulture,
+    categoryGames,
+    categoryMoviesTv,
     categoryCustom,
   ];
   

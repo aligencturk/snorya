@@ -156,18 +156,27 @@ class ArticleViewModel extends ChangeNotifier {
   // Kategori değiştir
   Future<void> changeCategory(String category) async {
     if (_selectedCategory != category) {
+      // Eski kategori önbelleğini temizle
+      _wikiService.clearCategoryCache(_selectedCategory);
+      
       _selectedCategory = category;
       
       // Kategoriyi kaydet
       await _storageService.saveLastCategory(category);
       
-      // Makaleleri temizle ve yeni kategori için içerik yükle
+      // Makaleleri temizle
       _articles = [];
       
       // WikiSpecies veya Commons içeriği gösterme
       _showWikimediaContent = false;
       
+      // Yeni kategori için makaleleri yükle
       await loadNextArticle();
+
+      // Kaydırma deneyimini iyileştirmek için, arka planda 2 makale daha yükle
+      for (int i = 0; i < 2; i++) {
+        await loadNextArticle();
+      }
     }
   }
 
@@ -225,7 +234,8 @@ class ArticleViewModel extends ChangeNotifier {
   // Daha fazla makale yüklemeli mi kontrol et
   void checkAndLoadMoreArticles(int index) {
     _currentIndex = index;
-    final needsMoreArticles = index >= _articles.length - 2 && !_isLoadingMore;
+    // Kullanıcı makalelerin sonuna yaklaştığında yeni makaleler yükle
+    final needsMoreArticles = index >= _articles.length - 3 && !_isLoadingMore;
     
     if (needsMoreArticles) {
       _loadMoreArticles();
@@ -240,7 +250,12 @@ class ArticleViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await loadNextArticle();
+      // Paralel olarak 3 makale yükle (daha hızlı kaydırma deneyimi için)
+      await Future.wait([
+        loadNextArticle(),
+        loadNextArticle(),
+        loadNextArticle(),
+      ]);
     } catch (e) {
       // Hata zaten loadNextArticle içinde işlendi
     } finally {

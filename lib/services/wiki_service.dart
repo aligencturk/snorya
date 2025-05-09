@@ -7,6 +7,7 @@ class WikiService {
   final Random _random = Random();
   final Map<String, List<String>> _usedTitles = {};
   final Map<String, List<String>> _topicArticleCache = {};
+  final Map<String, List<String>> _categoryArticleCache = {}; // Kategori önbelleği
 
   /// Belirli bir kategori için rastgele bir Wikipedia makalesi başlığı getirir
   Future<String> getRandomArticleTitle(String category, {String customTopic = ''}) async {
@@ -19,6 +20,38 @@ class WikiService {
       // Her kategori için kullanılmış başlıkları izle
       if (!_usedTitles.containsKey(category)) {
         _usedTitles[category] = [];
+      }
+      
+      // Önbelleği kontrol et, gerekirse ön yükleme yap
+      if (!_categoryArticleCache.containsKey(category) || _categoryArticleCache[category]!.isEmpty) {
+        await _loadCategoryArticles(category);
+      }
+
+      // Önbellekten bir makale seç
+      if (_categoryArticleCache.containsKey(category) && _categoryArticleCache[category]!.isNotEmpty) {
+        // Önce kullanılmamış makaleleri filtrele
+        final unusedArticles = _categoryArticleCache[category]!
+            .where((title) => !_usedTitles[category]!.contains(title))
+            .toList();
+
+        String title;
+        if (unusedArticles.isNotEmpty) {
+          // Kullanılmamış bir makale seç
+          title = unusedArticles[_random.nextInt(unusedArticles.length)];
+        } else {
+          // Tüm makaleler kullanılmış, rastgele bir tane seç
+          title = _categoryArticleCache[category]![_random.nextInt(_categoryArticleCache[category]!.length)];
+        }
+
+        // Başlığı kullanılmış başlıklara ekle
+        _usedTitles[category]!.add(title);
+        
+        // Liste çok büyürse, eski başlıkları temizle (son 100 başlığı tut)
+        if (_usedTitles[category]!.length > 100) {
+          _usedTitles[category] = _usedTitles[category]!.sublist(_usedTitles[category]!.length - 100);
+        }
+
+        return title;
       }
       
       // Kategori bazlı sorgu parametresi oluşturma
@@ -39,6 +72,12 @@ class WikiService {
           case AppConstants.categoryCulture:
             gcmtitle = 'Kategori:Kültür';
             break;
+          case AppConstants.categoryGames:
+            gcmtitle = 'Kategori:Oyunlar';
+            break;
+          case AppConstants.categoryMoviesTv:
+            gcmtitle = 'Kategori:Filmler';
+            break;
         }
       }
       
@@ -48,8 +87,8 @@ class WikiService {
       int retryCount = 0;
       
       // Eğer belirli bir kategori seçilmişse, o kategoriden bir makale getir
-      while (!titleFound && retryCount < 3) {
-        if (gcmtitle.isNotEmpty) {
+      if (gcmtitle.isNotEmpty) {
+        while (!titleFound && retryCount < 3) {
           url = Uri.parse('${AppConstants.wikipediaApiBaseUrl}?action=query&format=json&list=categorymembers&cmtitle=$gcmtitle&cmlimit=$cmlimit&cmtype=page');
           
           final response = await http.get(url);
@@ -77,24 +116,76 @@ class WikiService {
                 // Alt kategorileri veya daha geniş kategorileri dene
                 retryCount++;
                 cmlimit += 50; // Daha fazla sonuç almak için limiti artır
+                
+                // Alt kategorileri denemek için sorguları genişlet
+                switch (category) {
+                  case AppConstants.categoryScience:
+                    // Bilim alt kategorileri
+                    final scienceSubcategories = ['Kategori:Fizik', 'Kategori:Kimya', 'Kategori:Biyoloji', 'Kategori:Astronomi', 'Kategori:Matematik'];
+                    if (retryCount < scienceSubcategories.length) {
+                      gcmtitle = scienceSubcategories[retryCount];
+                    }
+                    break;
+                  case AppConstants.categoryHistory:
+                    // Tarih alt kategorileri
+                    final historySubcategories = ['Kategori:Türk tarihi', 'Kategori:Dünya tarihi', 'Kategori:Antik tarih', 'Kategori:Savaşlar', 'Kategori:İmparatorluklar'];
+                    if (retryCount < historySubcategories.length) {
+                      gcmtitle = historySubcategories[retryCount];
+                    }
+                    break;
+                  case AppConstants.categoryTechnology:
+                    // Teknoloji alt kategorileri
+                    final techSubcategories = ['Kategori:Bilgisayarlar', 'Kategori:İnternet', 'Kategori:Yazılım', 'Kategori:Mobil iletişim', 'Kategori:Yapay zeka'];
+                    if (retryCount < techSubcategories.length) {
+                      gcmtitle = techSubcategories[retryCount];
+                    }
+                    break;
+                  case AppConstants.categoryCulture:
+                    // Kültür alt kategorileri
+                    final cultureSubcategories = ['Kategori:Sanat', 'Kategori:Edebiyat', 'Kategori:Müzik', 'Kategori:Sinema', 'Kategori:Tiyatro'];
+                    if (retryCount < cultureSubcategories.length) {
+                      gcmtitle = cultureSubcategories[retryCount];
+                    }
+                    break;
+                  case AppConstants.categoryGames:
+                    // Oyun alt kategorileri
+                    final gamesSubcategories = ['Kategori:Video oyunları', 'Kategori:Bilgisayar oyunları', 'Kategori:Mobil oyunlar', 'Kategori:Oyun konsolları', 'Kategori:Rol yapma oyunları'];
+                    if (retryCount < gamesSubcategories.length) {
+                      gcmtitle = gamesSubcategories[retryCount];
+                    }
+                    break;
+                  case AppConstants.categoryMoviesTv:
+                    // Dizi/Film alt kategorileri
+                    final moviesTvSubcategories = ['Kategori:Filmler', 'Kategori:Televizyon dizileri', 'Kategori:Sinema', 'Kategori:TV şovları', 'Kategori:Film yönetmenleri'];
+                    if (retryCount < moviesTvSubcategories.length) {
+                      gcmtitle = moviesTvSubcategories[retryCount];
+                    }
+                    break;
+                }
               }
+            } else {
+              // Kategori boşsa, alt kategorileri dene
+              retryCount++;
             }
+          } else {
+            // API hatası, tekrar dene
+            retryCount++;
           }
         }
+      }
+      
+      // Eğer hala başlık bulunamadıysa veya kategori "Karışık" ise rastgele makale getir
+      if (!titleFound) {
+        url = Uri.parse('${AppConstants.wikipediaApiBaseUrl}?action=query&format=json&list=random&rnlimit=1&rnnamespace=0');
         
-        // Kategori belirtilmemiş veya kategori sorgusu başarısız olmuşsa rastgele makale getir
-        if (!titleFound) {
-          url = Uri.parse('${AppConstants.wikipediaApiBaseUrl}?action=query&format=json&list=random&rnlimit=1&rnnamespace=0');
-          
-          final response = await http.get(url);
-          
-          if (response.statusCode == 200) {
-            final data = json.decode(response.body);
-            title = data['query']['random'][0]['title'];
-            titleFound = true;
-          } else {
-            throw Exception('API error: ${response.statusCode}');
-          }
+        final response = await http.get(url);
+        
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          title = data['query']['random'][0]['title'];
+          titleFound = true;
+        } else {
+          throw Exception('API error: ${response.statusCode}');
         }
       }
       
@@ -570,5 +661,87 @@ class WikiService {
   /// Tüm konu önbelleğini temizle
   void clearAllTopicCache() {
     _topicArticleCache.clear();
+  }
+
+  /// Kategori için makaleleri önceden yükler
+  Future<void> _loadCategoryArticles(String category) async {
+    if (category == AppConstants.categoryMixed) {
+      // Karışık kategorisi için rastgele makaleleri yükle
+      return; // Karışık kategori için önbellek kullanmıyoruz
+    }
+
+    try {
+      if (!_categoryArticleCache.containsKey(category)) {
+        _categoryArticleCache[category] = [];
+      }
+
+      // Kategori için uygun başlıkları belirle
+      List<String> categoryTitles = [];
+      switch (category) {
+        case AppConstants.categoryScience:
+          categoryTitles = ['Kategori:Bilim', 'Kategori:Fizik', 'Kategori:Kimya', 'Kategori:Biyoloji', 'Kategori:Astronomi', 'Kategori:Matematik'];
+          break;
+        case AppConstants.categoryHistory:
+          categoryTitles = ['Kategori:Tarih', 'Kategori:Türk tarihi', 'Kategori:Dünya tarihi', 'Kategori:Antik tarih', 'Kategori:Savaşlar', 'Kategori:İmparatorluklar'];
+          break;
+        case AppConstants.categoryTechnology:
+          categoryTitles = ['Kategori:Teknoloji', 'Kategori:Bilgisayarlar', 'Kategori:İnternet', 'Kategori:Yazılım', 'Kategori:Mobil iletişim', 'Kategori:Yapay zeka'];
+          break;
+        case AppConstants.categoryCulture:
+          categoryTitles = ['Kategori:Kültür', 'Kategori:Sanat', 'Kategori:Edebiyat', 'Kategori:Müzik', 'Kategori:Sinema', 'Kategori:Tiyatro'];
+          break;
+        case AppConstants.categoryGames:
+          categoryTitles = ['Kategori:Oyunlar', 'Kategori:Video oyunları', 'Kategori:Bilgisayar oyunları', 'Kategori:Mobil oyunlar', 'Kategori:Oyun konsolları', 'Kategori:Rol yapma oyunları'];
+          break;
+        case AppConstants.categoryMoviesTv:
+          categoryTitles = ['Kategori:Filmler', 'Kategori:Televizyon dizileri', 'Kategori:Sinema', 'Kategori:TV şovları', 'Kategori:Film yönetmenleri'];
+          break;
+        default:
+          return; // Bilinmeyen kategori
+      }
+
+      // Her kategori başlığı için makaleleri getir
+      for (final title in categoryTitles) {
+        if (_categoryArticleCache[category]!.length >= 50) {
+          break; // 50 makale yeterli
+        }
+
+        final Uri url = Uri.parse('${AppConstants.wikipediaApiBaseUrl}?action=query&format=json&list=categorymembers&cmtitle=$title&cmlimit=50&cmtype=page');
+        final response = await http.get(url);
+        
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          if (data['query'].containsKey('categorymembers')) {
+            final members = data['query']['categorymembers'] as List;
+            
+            for (final member in members) {
+              final articleTitle = member['title'] as String;
+              if (!_categoryArticleCache[category]!.contains(articleTitle)) {
+                _categoryArticleCache[category]!.add(articleTitle);
+              }
+              
+              if (_categoryArticleCache[category]!.length >= 50) {
+                break; // 50 makale yeterli
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Kategori makaleleri yüklenirken hata: $e');
+      // Hata durumunda sessizce devam et, ana akış etkilenmesin
+    }
+  }
+
+  /// Kategori önbelleğini temizler
+  void clearCategoryCache(String category) {
+    if (_categoryArticleCache.containsKey(category)) {
+      _categoryArticleCache[category] = [];
+    }
+  }
+
+  /// Tüm kategori önbelleğini temizler
+  void clearAllCategoryCache() {
+    _categoryArticleCache.clear();
   }
 } 
