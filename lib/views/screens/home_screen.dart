@@ -173,44 +173,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       article: article,
                       onFavoriteToggle: () => viewModel.toggleFavorite(),
                       onNavigateToFavorites: () => _navigateToFavorites(context),
+                      onVerticalScroll: () {
+                        // Bir sonraki makaleye geçiş
+                        if (_pageController.page != null && index < viewModel.articles.length - 1) {
+                          _pageController.animateToPage(
+                            index + 1,
+                            duration: const Duration(milliseconds: 500),
+                            curve: Curves.easeOutCubic,
+                          );
+                        } else {
+                          // Son makaledeysek yeni makale yükle
+                          viewModel.loadNextArticle();
+                        }
+                      },
                     ),
                   );
                 },
               ),
-              
-              // Hafif kaydırma hint'i (ilk açıldığında)
-              if (!_isScrolling && viewModel.currentIndex == 0)
-                Positioned(
-                  bottom: 80,
-                  right: 20,
-                  child: AnimatedOpacity(
-                    opacity: 0.8,
-                    duration: const Duration(milliseconds: 300),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.4),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Column(
-                        children: [
-                          Icon(
-                            Icons.keyboard_arrow_up,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                          Text(
-                            'Kaydır',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
             ],
           );
         },

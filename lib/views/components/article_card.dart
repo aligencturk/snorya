@@ -7,6 +7,7 @@ class ArticleCard extends StatefulWidget {
   final VoidCallback onFavoriteToggle;
   final VoidCallback? onRefresh;
   final VoidCallback? onNavigateToFavorites;
+  final VoidCallback? onVerticalScroll;
   
   const ArticleCard({
     super.key,
@@ -14,6 +15,7 @@ class ArticleCard extends StatefulWidget {
     required this.onFavoriteToggle,
     this.onRefresh,
     this.onNavigateToFavorites,
+    this.onVerticalScroll,
   });
 
   @override
@@ -174,52 +176,98 @@ class _ArticleCardState extends State<ArticleCard> {
                             
                             // Tam içeriği göster butonu - Parlak tasarım
                             Center(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: [
-                                      Colors.blue.shade600,
-                                      Colors.blue.shade800,
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(30),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.blue.shade700.withOpacity(0.5),
-                                      spreadRadius: 1,
-                                      blurRadius: 15,
-                                      offset: const Offset(0, 5),
-                                    ),
-                                  ],
-                                ),
-                                child: ElevatedButton.icon(
-                                  onPressed: () {
-                                    _pageController.animateToPage(
-                                      1,
-                                      duration: const Duration(milliseconds: 500),
-                                      curve: Curves.easeOutQuint,
-                                    );
-                                  },
-                                  icon: const Icon(Icons.article, color: Colors.white),
-                                  label: const Text(
-                                    'Makalenin Tamamını Oku',
-                                    style: TextStyle(
-                                      color: Colors.white, 
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    foregroundColor: Colors.white,
-                                    elevation: 0,
-                                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                    shape: RoundedRectangleBorder(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Makalenin tamamını oku butonu
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Colors.blue.shade600,
+                                          Colors.blue.shade800,
+                                        ],
+                                      ),
                                       borderRadius: BorderRadius.circular(30),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.blue.shade700.withOpacity(0.5),
+                                          spreadRadius: 1,
+                                          blurRadius: 15,
+                                          offset: const Offset(0, 5),
+                                        ),
+                                      ],
+                                    ),
+                                    child: ElevatedButton.icon(
+                                      onPressed: () {
+                                        _pageController.animateToPage(
+                                          1,
+                                          duration: const Duration(milliseconds: 500),
+                                          curve: Curves.easeOutQuint,
+                                        );
+                                      },
+                                      icon: const Icon(Icons.article, color: Colors.white),
+                                      label: const Text(
+                                        'Makalenin Tamamını Oku',
+                                        style: TextStyle(
+                                          color: Colors.white, 
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.transparent,
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(30),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
+                                  // Aşağı kaydırma butonu
+                                  const SizedBox(width: 10),
+                                  Container(
+                                    height: 44,
+                                    width: 44,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Colors.blue.shade600,
+                                          Colors.blue.shade800,
+                                        ],
+                                      ),
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.blue.shade700.withOpacity(0.5),
+                                          spreadRadius: 1,
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: IconButton(
+                                      icon: const Icon(
+                                        Icons.keyboard_arrow_down,
+                                        color: Colors.white,
+                                        size: 24,
+                                      ),
+                                      onPressed: () {
+                                        // Bir sonraki makaleye kaydır
+                                        if (widget.onVerticalScroll != null) {
+                                          widget.onVerticalScroll!();
+                                        }
+                                      },
+                                      tooltip: 'Sonraki makale',
+                                      padding: EdgeInsets.zero,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             // Altta küçük bir boşluk bırak
@@ -230,45 +278,6 @@ class _ArticleCardState extends State<ArticleCard> {
                     ),
                   ),
                 ],
-              ),
-            ),
-            
-            // Sağa kaydırma indikatörü
-            Positioned(
-              right: 16,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 10,
-                      ),
-                    ],
-                  ),
-                  child: const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.keyboard_arrow_right,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                      Text(
-                        'Kaydır',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
             ),
             
