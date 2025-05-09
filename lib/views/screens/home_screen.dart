@@ -114,21 +114,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             );
           },
         ),
-        actions: [
-          // Favoriler butonu
-          Container(
-            margin: const EdgeInsets.only(right: 8.0),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.3),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.bookmark, color: Colors.white),
-              onPressed: () => _navigateToFavorites(context),
-              tooltip: 'Favoriler',
-            ),
-          ),
-        ],
+        
       ),
       body: Consumer<ArticleViewModel>(
         builder: (context, viewModel, child) {
