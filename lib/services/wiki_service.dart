@@ -944,4 +944,96 @@ class WikiService {
       return {'title': title, 'url': '', 'description': '', 'author': ''};
     }
   }
+
+  /// Başlığa göre resim URL'si arar
+  Future<String> searchImage(String title, {bool isEnglish = false}) async {
+    try {
+      // Wikipedia API'sini kullanarak resim arama
+      final apiUrl = isEnglish 
+          ? AppConstants.wikipediaEnApiBaseUrl 
+          : AppConstants.wikipediaApiBaseUrl;
+      
+      final url = Uri.parse(
+        '$apiUrl?action=query&titles=${Uri.encodeComponent(title)}'
+        '&prop=pageimages&format=json&pithumbsize=500'
+      );
+      
+      final response = await http.get(url);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data.containsKey('query') && 
+            data['query'].containsKey('pages')) {
+          
+          final pages = data['query']['pages'];
+          
+          // İlk sayfayı al (genellikle tek sayfa döner)
+          final pageId = pages.keys.first;
+          final page = pages[pageId];
+          
+          // Sayfada resim var mı kontrol et
+          if (page.containsKey('thumbnail') && 
+              page['thumbnail'].containsKey('source')) {
+            return page['thumbnail']['source'];
+          }
+          
+          // Resim yoksa, diğer resimleri kontrol et
+          if (page.containsKey('original') && 
+              page['original'].containsKey('source')) {
+            return page['original']['source'];
+          }
+        }
+      }
+      
+      // Resim bulunamadıysa, Wikimedia Commons API'sini dene
+      return await _searchImageInCommons(title);
+    } catch (e) {
+      print('Resim arama hatası: $e');
+      return '';
+    }
+  }
+  
+  /// Wikimedia Commons'dan resim ara
+  Future<String> _searchImageInCommons(String title) async {
+    try {
+      final url = Uri.parse(
+        '${AppConstants.commonsApiBaseUrl}?action=query'
+        '&generator=search&gsrsearch=${Uri.encodeComponent(title)}'
+        '&gsrlimit=5&prop=imageinfo&iiprop=url&format=json'
+      );
+      
+      final response = await http.get(url);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data.containsKey('query') && 
+            data['query'].containsKey('pages')) {
+          
+          final pages = data['query']['pages'];
+          
+          // Tüm sayfalarda imageinfo kontrol et
+          for (var pageId in pages.keys) {
+            final page = pages[pageId];
+            
+            if (page.containsKey('imageinfo') && 
+                page['imageinfo'] is List && 
+                page['imageinfo'].isNotEmpty) {
+              
+              final imageInfo = page['imageinfo'][0];
+              if (imageInfo.containsKey('url')) {
+                return imageInfo['url'];
+              }
+            }
+          }
+        }
+      }
+      
+      return '';
+    } catch (e) {
+      print('Commons\'da resim arama hatası: $e');
+      return '';
+    }
+  }
 } 

@@ -211,4 +211,25 @@ class StorageService {
       return null;
     }
   }
+
+  /// String listesini kaydet
+  Future<void> setStringList(String key, List<String> value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(key, value);
+    } catch (e) {
+      print('String listesi kaydedilirken hata: $e');
+    }
+  }
+
+  /// String listesini getir
+  Future<List<String>?> getStringList(String key) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getStringList(key);
+    } catch (e) {
+      print('String listesi alınırken hata: $e');
+      return null;
+    }
+  }
 }

@@ -46,6 +46,7 @@ class AppConstants {
   static const String cacheKeyLastCategory = 'last_category';
   static const String cacheKeyCustomTopics = 'custom_topics';
   static const String cacheKeyLastCustomTopic = 'last_custom_topic';
+  static const String cacheKeyMovieFavorites = 'movie_favorites';
   
   // Hata Mesajları
   static const String errorLoadingArticle = 'Makale yüklenirken bir hata oluştu. Lütfen tekrar deneyin.';

@@ -341,4 +341,21 @@ Kullanıcı isteği: $query''';
       };
     }
   }
+
+  /// Genel içerik üretme metodu
+  Future<String> generateContent(String prompt) async {
+    try {
+      final content = [Content.text(prompt)];
+      final response = await _model.generateContent(content);
+      
+      if (response.text != null && response.text!.isNotEmpty) {
+        return response.text!;
+      } else {
+        return '';
+      }
+    } catch (e) {
+      print('Gemini içerik üretme hatası: $e');
+      return '';
+    }
+  }
 } 

@@ -7,6 +7,7 @@ import '../components/article_card.dart';
 import 'favorites_screen.dart';
 import 'custom_topic_screen.dart';
 import 'game_recommendation_screen.dart';
+import 'movie_recommendation_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -716,7 +717,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ListTile(
                     leading: const Icon(Icons.sports_esports, color: Colors.lightBlueAccent),
                     title: const Text(
-                      'Oyunlar',
+                      'Oyun İçerikleri',
                       style: TextStyle(color: Colors.white),
                     ),
                     onTap: () {
@@ -782,14 +783,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                     onTap: () {
                       Navigator.pop(context); // Alt menüyü kapat
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Dizi/Film önerileri yakında gelecek!'),
-                          behavior: SnackBarBehavior.floating,
-                          action: SnackBarAction(
-                            label: 'Tamam',
-                            onPressed: () {},
-                          ),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MovieRecommendationScreen(),
                         ),
                       );
                     },
