@@ -829,4 +829,119 @@ class WikiService {
       return title.split(' ');
     }
   }
+
+  /// Belirli bir başlığa ait makale bilgilerini getirir
+  /// Game sınıfı için ek olarak eklenen metot
+  Future<Map<String, dynamic>?> fetchArticleByTitle(String title) async {
+    try {
+      // İçerik al
+      final content = await getArticleContent(title);
+      // Görsel al
+      final imageUrl = await getArticleImage(title);
+      
+      // Wikipedia URL'ini oluştur
+      final encodedTitle = Uri.encodeComponent(title.replaceAll(' ', '_'));
+      final url = 'https://tr.wikipedia.org/wiki/$encodedTitle';
+      
+      return {
+        'content': content,
+        'imageUrl': imageUrl,
+        'url': url,
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+  
+  /// Belirli bir konu için Commons görsellerini getir
+  /// Game sınıfı için ek olarak eklenen metot
+  Future<List<Map<String, dynamic>>> fetchCommonsImages(String topic, {int limit = 5}) async {
+    try {
+      final Uri url = Uri.parse(
+        '${AppConstants.commonsApiBaseUrl}?action=query&format=json&list=search&srsearch=${Uri.encodeComponent(topic)}&srnamespace=6&srlimit=$limit'
+      );
+      
+      final response = await http.get(url);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final searchResults = data['query']['search'] as List;
+        
+        if (searchResults.isEmpty) {
+          return [];
+        }
+        
+        final List<Map<String, dynamic>> images = [];
+        
+        for (final result in searchResults) {
+          final title = result['title'] as String;
+          
+          // Sadece görsel dosyalarını al
+          if (title.startsWith('File:') || title.startsWith('Image:')) {
+            final imageDetails = await _getCommonsImageDetails(title);
+            
+            if (imageDetails.containsKey('url') && imageDetails['url'].isNotEmpty) {
+              images.add(imageDetails);
+              
+              // Yeterli görsel toplandıysa döngüden çık
+              if (images.length >= limit) {
+                break;
+              }
+            }
+          }
+        }
+        
+        return images;
+      } else {
+        return [];
+      }
+    } catch (e) {
+      return [];
+    }
+  }
+  
+  /// Commons görsel detaylarını al
+  Future<Map<String, dynamic>> _getCommonsImageDetails(String title) async {
+    try {
+      final Uri url = Uri.parse(
+        '${AppConstants.commonsApiBaseUrl}?action=query&format=json&prop=imageinfo&titles=${Uri.encodeComponent(title)}&iiprop=url|extmetadata&iimetadataversion=latest'
+      );
+      
+      final response = await http.get(url);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final pages = data['query']['pages'] as Map<String, dynamic>;
+        final pageId = pages.keys.first;
+        
+        if (pageId != '-1' && pages[pageId].containsKey('imageinfo')) {
+          final imageInfo = pages[pageId]['imageinfo'][0];
+          final metadata = imageInfo['extmetadata'] ?? {};
+          
+          // Resim açıklaması
+          String description = '';
+          if (metadata.containsKey('ImageDescription') && metadata['ImageDescription'].containsKey('value')) {
+            description = metadata['ImageDescription']['value'];
+          }
+          
+          // Yazar bilgisi
+          String author = '';
+          if (metadata.containsKey('Artist') && metadata['Artist'].containsKey('value')) {
+            author = metadata['Artist']['value'];
+          }
+          
+          return {
+            'title': title,
+            'url': imageInfo['url'] ?? '',
+            'description': description,
+            'author': author,
+          };
+        }
+      }
+      
+      return {'title': title, 'url': '', 'description': '', 'author': ''};
+    } catch (e) {
+      return {'title': title, 'url': '', 'description': '', 'author': ''};
+    }
+  }
 } 

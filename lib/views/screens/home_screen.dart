@@ -6,6 +6,7 @@ import '../../utils/constants.dart';
 import '../components/article_card.dart';
 import 'favorites_screen.dart';
 import 'custom_topic_screen.dart';
+import 'game_recommendation_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -651,8 +652,170 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         // Drawer'ı kapat
         Navigator.pop(context);
         
+        // Oyun kategorisi için özel işleme
+        if (category == AppConstants.categoryGames) {
+          // Oyun kategorisi alt menüsü göster
+          showModalBottomSheet(
+            context: context,
+            backgroundColor: Colors.indigo.shade900,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            builder: (BuildContext context) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Alt menü başlık
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.indigo.shade900, Colors.indigo.shade800],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: const Text(
+                      'Oyun',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  
+                  // Oyun Önerisi seçeneği
+                  ListTile(
+                    leading: const Icon(Icons.videogame_asset, color: Colors.amber),
+                    title: const Text(
+                      'Oyun Önerisi',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context); // Alt menüyü kapat
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const GameRecommendationScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  
+                  // Oyunlar kategorisi seçeneği
+                  ListTile(
+                    leading: const Icon(Icons.sports_esports, color: Colors.lightBlueAccent),
+                    title: const Text(
+                      'Oyunlar',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context); // Alt menüyü kapat
+                      viewModel.changeCategory(category);
+                      _animationController.reset();
+                      _animationController.forward();
+                    },
+                  ),
+                ],
+              );
+            },
+          );
+        }
+        // Dizi/Film kategorisi için özel işleme
+        else if (category == AppConstants.categoryMoviesTv) {
+          // Dizi/Film kategorisi alt menüsü göster
+          showModalBottomSheet(
+            context: context,
+            backgroundColor: Colors.indigo.shade900,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            builder: (BuildContext context) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Alt menü başlık
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.indigo.shade900, Colors.indigo.shade800],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: const Text(
+                      'Dizi / Film',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  
+                  // Dizi/Film Önerisi seçeneği
+                  ListTile(
+                    leading: const Icon(Icons.movie_filter, color: Colors.amber),
+                    title: const Text(
+                      'Dizi/Film Önerisi',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context); // Alt menüyü kapat
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Dizi/Film önerileri yakında gelecek!'),
+                          behavior: SnackBarBehavior.floating,
+                          action: SnackBarAction(
+                            label: 'Tamam',
+                            onPressed: () {},
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  
+                  // Dizi/Film kategorisi seçeneği
+                  ListTile(
+                    leading: const Icon(Icons.movie_creation, color: Colors.lightBlueAccent),
+                    title: const Text(
+                      'Dizi/Film İçerikleri',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context); // Alt menüyü kapat
+                      viewModel.changeCategory(category);
+                      _animationController.reset();
+                      _animationController.forward();
+                    },
+                  ),
+                ],
+              );
+            },
+          );
+        }
         // Eğer özel kategoriyse ve seçili değilse, önce değiştir
-        if (category == AppConstants.categoryCustom && !isSelected) {
+        else if (category == AppConstants.categoryCustom && !isSelected) {
           viewModel.changeCategory(category);
           Future.delayed(Duration(milliseconds: 300), () {
             Navigator.push(

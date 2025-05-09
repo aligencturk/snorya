@@ -183,138 +183,32 @@ class StorageService {
       return [];
     }
   }
-}
-  // Son seçilen kategoriyi kaydet
-  Future<void> saveLastCategory(String category) async {
+
+  /// Genel amaçlı veri kaydetme metodu
+  Future<void> saveData(String key, dynamic data) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(AppConstants.cacheKeyLastCategory, category);
+      final jsonData = json.encode(data);
+      await prefs.setString(key, jsonData);
     } catch (e) {
-      print('Kategori kaydedilirken hata oluştu: $e');
+      print('Veri kaydedilirken hata oluştu: $e');
     }
   }
   
-  // Son seçilen kategoriyi yükle
-  Future<String> loadLastCategory() async {
+  /// Genel amaçlı veri yükleme metodu
+  Future<dynamic> loadData(String key) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getString(AppConstants.cacheKeyLastCategory) ?? AppConstants.categoryMixed;
-    } catch (e) {
-      print('Kategori yüklenirken hata oluştu: $e');
-      return AppConstants.categoryMixed;
-    }
-  }
-  
-  // Özel konuları kaydet
-  Future<void> saveCustomTopics(List<String> topics) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(AppConstants.cacheKeyCustomTopics, topics);
-    } catch (e) {
-      print('Özel konular kaydedilirken hata oluştu: $e');
-    }
-  }
-  
-  // Özel konuları yükle
-  Future<List<String>> loadCustomTopics() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getStringList(AppConstants.cacheKeyCustomTopics) ?? [];
-    } catch (e) {
-      print('Özel konular yüklenirken hata oluştu: $e');
-      return [];
-    }
-  }
-  
-  // Son seçilen özel konuyu kaydet
-  Future<void> saveLastCustomTopic(String topic) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(AppConstants.cacheKeyLastCustomTopic, topic);
-    } catch (e) {
-      print('Özel konu kaydedilirken hata oluştu: $e');
-    }
-  }
-  
-  // Son seçilen özel konuyu yükle
-  Future<String> loadLastCustomTopic() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getString(AppConstants.cacheKeyLastCustomTopic) ?? '';
-    } catch (e) {
-      print('Özel konu yüklenirken hata oluştu: $e');
-      return '';
-    }
-  }
-  
-  // Genel bir string değeri kaydet
-  Future<void> setString(String key, String value) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(key, value);
-    } catch (e) {
-      print('String değeri kaydedilirken hata oluştu: $e');
-    }
-  }
-  
-  // Genel bir string değeri yükle
-  Future<String> getString(String key, {String defaultValue = ''}) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getString(key) ?? defaultValue;
-    } catch (e) {
-      print('String değeri yüklenirken hata oluştu: $e');
-      return defaultValue;
-    }
-  }
-  
-  // Genel bir string listesi kaydet
-  Future<void> setStringList(String key, List<String> values) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(key, values);
-    } catch (e) {
-      print('String listesi kaydedilirken hata oluştu: $e');
-    }
-  }
-  
-  // Genel bir string listesi yükle
-  Future<List<String>> getStringList(String key) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getStringList(key) ?? [];
-    } catch (e) {
-      print('String listesi yüklenirken hata oluştu: $e');
-      return [];
-    }
-  }
-  
-  // Makaleleri kaydet (genel amaçlı)
-  Future<void> saveArticles(String key, List<Article> articles) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonList = articles.map((article) => jsonEncode(article.toJson())).toList();
-      await prefs.setStringList(key, jsonList);
-    } catch (e) {
-      print('Makaleler kaydedilirken hata oluştu: $e');
-    }
-  }
-  
-  // Makaleleri yükle (genel amaçlı)
-  Future<List<Article>> getArticles(String key) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonList = prefs.getStringList(key);
+      final jsonData = prefs.getString(key);
       
-      if (jsonList == null || jsonList.isEmpty) {
-        return [];
+      if (jsonData == null) {
+        return null;
       }
       
-      return jsonList
-          .map((jsonStr) => Article.fromJson(jsonDecode(jsonStr)))
-          .toList();
+      return json.decode(jsonData);
     } catch (e) {
-      print('Makaleler yüklenirken hata oluştu: $e');
-      return [];
+      print('Veri yüklenirken hata oluştu: $e');
+      return null;
     }
   }
+}

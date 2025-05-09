@@ -7,6 +7,7 @@ import 'services/storage_service.dart';
 import 'services/preload_service.dart';
 import 'viewmodels/article_view_model.dart';
 import 'viewmodels/favorites_view_model.dart';
+import 'viewmodels/game_view_model.dart';
 import 'views/screens/home_screen.dart';
 import 'utils/constants.dart';
 
@@ -58,6 +59,14 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider<FavoritesViewModel>(
           create: (context) => FavoritesViewModel(
+            storageService: context.read<StorageService>(),
+          ),
+        ),
+        // Oyun önerileri için ViewModel
+        ChangeNotifierProvider<GameViewModel>(
+          create: (context) => GameViewModel(
+            geminiService: context.read<GeminiService>(),
+            wikiService: context.read<WikiService>(),
             storageService: context.read<StorageService>(),
           ),
         ),
