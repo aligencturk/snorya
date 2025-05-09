@@ -694,16 +694,55 @@ class _GameCardState extends State<GameCard> with SingleTickerProviderStateMixin
                                 ),
                               ),
                               
-                              // Ek görseller varsa göster
-                              if (widget.game.additionalImages != null && 
-                                  widget.game.additionalImages!.isNotEmpty &&
-                                  widget.game.additionalImages is List)
-                                _buildAdditionalImages(widget.game.additionalImages!),
+                              // Puanlar ve değerlendirmeler
+                              _buildRatingsSection(widget.game.ratings),
+                              _buildReviewsSection(widget.game.reviews),
                               
-                              // Metadata varsa göster
-                              if (widget.game.metadata != null)
-                                _buildMetadata(widget.game.metadata!),
-                                
+                              // Veri bulunmadığı durumda bilgilendirme mesajı göster
+                              if ((widget.game.ratings == null || widget.game.ratings!.isEmpty) && 
+                                  (widget.game.reviews == null || widget.game.reviews!.isEmpty))
+                                Container(
+                                  margin: const EdgeInsets.only(top: 32, bottom: 32),
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black38,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.white24,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      const Icon(
+                                        Icons.info_outline,
+                                        color: Colors.amber,
+                                        size: 28,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      const Text(
+                                        'Bu oyun için değerlendirme ve puan bilgisi bulunamadı.',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w500,
+                                          height: 1.5,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        'Daha yaygın bir oyun için arama yapabilirsiniz.',
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 14,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              
                               // Altta ekstra boşluk
                               const SizedBox(height: 40),
                             ],
@@ -915,6 +954,358 @@ class _GameCardState extends State<GameCard> with SingleTickerProviderStateMixin
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// Oyun puanlarını gösteren widget
+  Widget _buildRatingsSection(Map<String, dynamic>? ratings) {
+    if (ratings == null || ratings.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(top: 32, bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.indigo.withOpacity(0.5),
+            Colors.blue.withOpacity(0.3),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.blue.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.star, color: Colors.amber, size: 20),
+              SizedBox(width: 8),
+              Text(
+                'OYUN PUANLARI',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Metacritic puanı
+          if (ratings.containsKey('metacritic') && 
+              ratings['metacritic'] != null &&
+              ratings['metacritic']['score'] != null)
+            _buildRatingItem(
+              'Metacritic',
+              '${ratings['metacritic']['score']}',
+              ratings['metacritic']['score'] >= 75 ? Colors.green : 
+              ratings['metacritic']['score'] >= 50 ? Colors.amber : Colors.red,
+              '${ratings['metacritic']['count'] ?? 'Bilinmiyor'} inceleme',
+              showBar: true,
+              scoreValue: ratings['metacritic']['score'] / 100,
+            ),
+            
+          // IGN puanı
+          if (ratings.containsKey('ign') && 
+              ratings['ign'] != null &&
+              ratings['ign']['score'] != null)
+            _buildRatingItem(
+              'IGN',
+              '${ratings['ign']['score']}/10',
+              ratings['ign']['score'] >= 7.5 ? Colors.green : 
+              ratings['ign']['score'] >= 5 ? Colors.amber : Colors.red,
+              ratings['ign']['summary'] ?? '',
+            ),
+            
+          // Steam değerlendirmesi
+          if (ratings.containsKey('steam') && 
+              ratings['steam'] != null &&
+              ratings['steam']['positive_percent'] != null)
+            _buildRatingItem(
+              'Steam',
+              '${ratings['steam']['positive_percent']}%',
+              ratings['steam']['positive_percent'] >= 70 ? Colors.green : 
+              ratings['steam']['positive_percent'] >= 50 ? Colors.amber : Colors.red,
+              '${ratings['steam']['summary'] ?? ''} (${ratings['steam']['review_count'] ?? 'Bilinmiyor'} değerlendirme)',
+              showBar: true,
+              scoreValue: ratings['steam']['positive_percent'] / 100,
+            ),
+            
+            // Eğer puan yoksa bilgilendirme göster
+            if (!(ratings.containsKey('metacritic') && ratings['metacritic'] != null && ratings['metacritic']['score'] != null) &&
+                !(ratings.containsKey('ign') && ratings['ign'] != null && ratings['ign']['score'] != null) &&
+                !(ratings.containsKey('steam') && ratings['steam'] != null && ratings['steam']['positive_percent'] != null))
+              const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Text(
+                  'Bu oyun için puan bilgisi bulunamadı.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+
+  /// Oyun değerlendirmelerini gösteren widget
+  Widget _buildReviewsSection(List<Map<String, dynamic>>? reviews) {
+    if (reviews == null || reviews.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(top: 16, bottom: 32),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.purple.withOpacity(0.5),
+            Colors.deepPurple.withOpacity(0.3),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.purple.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.rate_review, color: Colors.amber, size: 20),
+              SizedBox(width: 8),
+              Text(
+                'ELEŞTİRMEN YORUMLARI',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Değerlendirmeleri listele
+          ...reviews.map((review) => _buildReviewItem(review)).toList(),
+          
+        ],
+      ),
+    );
+  }
+
+  /// Tek bir puan öğesi
+  Widget _buildRatingItem(String source, String scoreText, Color scoreColor, String details, {bool showBar = false, double scoreValue = 0.0}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Kaynak adı
+              Text(
+                source,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const Spacer(),
+              // Puan
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: scoreColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: scoreColor,
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  scoreText,
+                  style: TextStyle(
+                    color: scoreColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // Detay bilgisi
+          if (details.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 4),
+              child: Text(
+                details,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          // İsteğe bağlı puan çubuğu
+          if (showBar)
+            Container(
+              height: 4,
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 4),
+              decoration: BoxDecoration(
+                color: Colors.white12,
+                borderRadius: BorderRadius.circular(2),
+              ),
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: scoreValue,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        scoreColor.withOpacity(0.7),
+                        scoreColor,
+                      ],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: scoreColor.withOpacity(0.5),
+                        blurRadius: 4,
+                        spreadRadius: 0,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Tek bir yorum öğesi
+  Widget _buildReviewItem(Map<String, dynamic> review) {
+    final String source = review['source'] ?? '';
+    final String author = review['author'] ?? '';
+    final String comment = review['comment'] ?? '';
+    final String score = review['score'] ?? '';
+    final String date = review['date'] ?? '';
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black26,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.white10,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Üst kısım - Kaynak, yazar, puan, tarih
+          Row(
+            children: [
+              // Kaynak ve Yazar
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      source,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (author.isNotEmpty)
+                      Text(
+                        author,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              // Puan varsa göster
+              if (score.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: Colors.amber.withOpacity(0.5),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    score,
+                    style: const TextStyle(
+                      color: Colors.amber,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          
+          // Yorum içeriği
+          if (comment.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8, bottom: 4),
+              child: Text(
+                '"$comment"',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+            
+            // Tarih varsa göster
+            if (date.isNotEmpty)
+              Align(
+                alignment: Alignment.bottomRight,
+                child: Text(
+                  date,
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
         ],
       ),
     );

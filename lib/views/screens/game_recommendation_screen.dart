@@ -66,7 +66,9 @@ class _GameRecommendationScreenState extends State<GameRecommendationScreen> wit
     
     // ViewModel'i başlat ve ilk oyunu yükle
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<GameViewModel>(context, listen: false).initialize();
+      final viewModel = Provider.of<GameViewModel>(context, listen: false);
+      _currentFilter = viewModel.activeGenreFilter; // Başlangıçta aktif filtreyi al
+      viewModel.initialize();
     });
   }
   
@@ -450,10 +452,11 @@ class _GameRecommendationScreenState extends State<GameRecommendationScreen> wit
           if (value.isNotEmpty) {
             // Arama sorgusunu viewModel'e gönder
             final gameViewModel = Provider.of<GameViewModel>(context, listen: false);
-            gameViewModel.generateGameRecommendation(value);
+            gameViewModel.generateGameRecommendation(value, genreFilter: 'Tümü');
             
-            // Arama çubuğunu gizle
+            // Arama yaptığında filtre değerini de güncelleyelim
             setState(() {
+              _currentFilter = 'Tümü';
               _showSearchBar = false;
             });
           }
@@ -763,9 +766,9 @@ class _GameRecommendationScreenState extends State<GameRecommendationScreen> wit
                           
                           // Filtreye göre oyun getir
                           if (genre == 'Tümü') {
-                            viewModel.generateGameRecommendation('popüler oyun önerisi');
+                            viewModel.generateGameRecommendation('popüler oyun önerisi', genreFilter: genre);
                           } else {
-                            viewModel.generateGameRecommendation('$genre oyun önerisi');
+                            viewModel.generateGameRecommendation('$genre oyun önerisi', genreFilter: genre);
                           }
                         },
                         child: Container(

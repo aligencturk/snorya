@@ -17,6 +17,8 @@ class GameViewModel extends ChangeNotifier {
   String _errorMessage = '';
   String _lastQuery = '';
   bool _isSearching = false;
+  String _activeGenreFilter = 'Tümü'; // Aktif tür filtresi
+  bool _isCustomSearch = false; // Özel arama mı yapıldı?
   
   // Getters
   List<Game> get games => _games;
@@ -24,6 +26,7 @@ class GameViewModel extends ChangeNotifier {
   String get errorMessage => _errorMessage;
   bool get isSearching => _isSearching;
   String get lastQuery => _lastQuery;
+  String get activeGenreFilter => _activeGenreFilter; // Aktif tür filtresi getter'ı
   
   GameViewModel({
     required GeminiService geminiService,
@@ -42,15 +45,32 @@ class GameViewModel extends ChangeNotifier {
   }
   
   /// Kullanıcı sorgusuna göre oyun önerisi getir
-  Future<void> generateGameRecommendation(String query) async {
+  Future<void> generateGameRecommendation(String query, {String genreFilter = 'Tümü'}) async {
     _state = GameLoadingState.loading;
     _isSearching = true;
     _lastQuery = query;
+    _activeGenreFilter = genreFilter; // Aktif filtre türünü ayarla
+    
+    // Özel arama mı yoksa filtre mi belirleme
+    if (genreFilter != 'Tümü') {
+      _isCustomSearch = false; // Bu bir filtre araması
+    } else if (!query.contains('popüler') && !query.contains('oyun önerisi')) {
+      _isCustomSearch = true; // Bu özel bir arama
+    } else {
+      _isCustomSearch = false; // Bu genel bir öneri
+    }
+    
     notifyListeners();
     
     try {
+      // Eğer filtre aktifse ve özel arama değilse, sorguyu filtre türüne göre düzenle
+      String finalQuery = query;
+      if (genreFilter != 'Tümü' && !_isCustomSearch) {
+        finalQuery = '$genreFilter oyunu önerisi';
+      }
+      
       // Gemini'den oyun önerisi al
-      final gameRecommendations = await _geminiService.generateGameRecommendation(query);
+      final gameRecommendations = await _geminiService.generateGameRecommendation(finalQuery);
       
       if (gameRecommendations.isEmpty) {
         _state = GameLoadingState.empty;
@@ -69,10 +89,30 @@ class GameViewModel extends ChangeNotifier {
         return;
       }
       
+      // Eğer aktif bir tür filtresi varsa, gelen oyunları filtrele
+      List<Game> filteredGames = gameRecommendations;
+      if (genreFilter != 'Tümü') {
+        filteredGames = gameRecommendations
+            .where((game) => 
+                game.genre.toLowerCase().contains(genreFilter.toLowerCase()) || 
+                genreFilter.toLowerCase().contains(game.genre.toLowerCase()))
+            .toList();
+        
+        // Filtrelenmiş liste boşsa, tüm oyunları kullan ama türlerini güncelle
+        if (filteredGames.isEmpty) {
+          filteredGames = gameRecommendations.map((game) {
+            // Genre'yi aktif filtreye uygun olacak şekilde güncelle
+            return game.copyWith(
+              genre: genreFilter
+            );
+          }).toList();
+        }
+      }
+      
       // Her bir oyun için Wikipedia'dan görsel ve ek içerik al
       final enrichedGames = <Game>[];
       
-      for (final game in gameRecommendations) {
+      for (final game in filteredGames) {
         final String searchTitle = game.metadata?['searchTitle'] ?? game.title;
         
         try {
@@ -90,6 +130,40 @@ class GameViewModel extends ChangeNotifier {
               additionalImages = null;
             }
             
+            // Oyun değerlendirmeleri ve puanlarını getir
+            Map<String, dynamic>? reviewsAndRatings;
+            try {
+              reviewsAndRatings = await _geminiService.fetchGameReviewsAndRatings(game.title);
+            } catch (e) {
+              print("Oyun değerlendirmeleri alınırken hata: $e");
+              reviewsAndRatings = null;
+            }
+            
+            // Derecelendirme ve yorumları güvenli şekilde ayarla
+            Map<String, dynamic>? ratings = null;
+            List<Map<String, dynamic>>? reviews = null;
+            
+            if (reviewsAndRatings != null) {
+              // Ratings verisini güvenli şekilde al
+              if (reviewsAndRatings.containsKey('ratings') && reviewsAndRatings['ratings'] is Map) {
+                ratings = Map<String, dynamic>.from(reviewsAndRatings['ratings']);
+              }
+              
+              // Reviews verisini güvenli şekilde al
+              if (reviewsAndRatings.containsKey('reviews') && reviewsAndRatings['reviews'] is List) {
+                try {
+                  reviews = (reviewsAndRatings['reviews'] as List)
+                      .map((item) => item is Map 
+                          ? Map<String, dynamic>.from(item) 
+                          : <String, dynamic>{})
+                      .toList();
+                } catch (e) {
+                  print("Reviews dönüştürme hatası: $e");
+                  reviews = null;
+                }
+              }
+            }
+            
             // Zenginleştirilmiş oyun bilgisi oluştur
             final enrichedGame = game.copyWith(
               imageUrl: wikiData['imageUrl'] ?? '',
@@ -98,16 +172,96 @@ class GameViewModel extends ChangeNotifier {
                 ...?game.metadata,
                 'wikiUrl': wikiData['url'] ?? '',
               },
+              ratings: ratings,
+              reviews: reviews,
             );
             
             enrichedGames.add(enrichedGame);
           } else {
-            // Wikipedia'da bulunamadıysa olduğu gibi ekle
-            enrichedGames.add(game);
+            // Sadece değerlendirmeleri getir
+            Map<String, dynamic>? reviewsAndRatings;
+            try {
+              reviewsAndRatings = await _geminiService.fetchGameReviewsAndRatings(game.title);
+            } catch (e) {
+              print("Oyun değerlendirmeleri alınırken hata: $e");
+              reviewsAndRatings = null;
+            }
+            
+            // Derecelendirme ve yorumları güvenli şekilde ayarla
+            Map<String, dynamic>? ratings = null;
+            List<Map<String, dynamic>>? reviews = null;
+            
+            if (reviewsAndRatings != null) {
+              // Ratings verisini güvenli şekilde al
+              if (reviewsAndRatings.containsKey('ratings') && reviewsAndRatings['ratings'] is Map) {
+                ratings = Map<String, dynamic>.from(reviewsAndRatings['ratings']);
+              }
+              
+              // Reviews verisini güvenli şekilde al
+              if (reviewsAndRatings.containsKey('reviews') && reviewsAndRatings['reviews'] is List) {
+                try {
+                  reviews = (reviewsAndRatings['reviews'] as List)
+                      .map((item) => item is Map 
+                          ? Map<String, dynamic>.from(item) 
+                          : <String, dynamic>{})
+                      .toList();
+                } catch (e) {
+                  print("Reviews dönüştürme hatası: $e");
+                  reviews = null;
+                }
+              }
+            }
+            
+            // Wikipedia'da bulunamadıysa olduğu gibi ekle, varsa değerlendirmeleri ekle
+            final enrichedGame = game.copyWith(
+              ratings: ratings,
+              reviews: reviews,
+            );
+            
+            enrichedGames.add(enrichedGame);
           }
         } catch (e) {
-          // Hata durumunda orijinal oyunu ekle
-          enrichedGames.add(game);
+          // Sadece değerlendirmeleri getir
+          Map<String, dynamic>? reviewsAndRatings;
+          try {
+            reviewsAndRatings = await _geminiService.fetchGameReviewsAndRatings(game.title);
+          } catch (e) {
+            print("Oyun değerlendirmeleri alınırken hata: $e");
+            reviewsAndRatings = null;
+          }
+          
+          // Derecelendirme ve yorumları güvenli şekilde ayarla
+          Map<String, dynamic>? ratings = null;
+          List<Map<String, dynamic>>? reviews = null;
+          
+          if (reviewsAndRatings != null) {
+            // Ratings verisini güvenli şekilde al
+            if (reviewsAndRatings.containsKey('ratings') && reviewsAndRatings['ratings'] is Map) {
+              ratings = Map<String, dynamic>.from(reviewsAndRatings['ratings']);
+            }
+            
+            // Reviews verisini güvenli şekilde al
+            if (reviewsAndRatings.containsKey('reviews') && reviewsAndRatings['reviews'] is List) {
+              try {
+                reviews = (reviewsAndRatings['reviews'] as List)
+                    .map((item) => item is Map 
+                        ? Map<String, dynamic>.from(item) 
+                        : <String, dynamic>{})
+                    .toList();
+              } catch (e) {
+                print("Reviews dönüştürme hatası: $e");
+                reviews = null;
+              }
+            }
+          }
+          
+          // Hata durumunda orijinal oyunu ekle, varsa değerlendirmeleri ekle
+          final enrichedGame = game.copyWith(
+            ratings: ratings,
+            reviews: reviews,
+          );
+          
+          enrichedGames.add(enrichedGame);
         }
       }
       
@@ -125,9 +279,15 @@ class GameViewModel extends ChangeNotifier {
   
   /// Yeni bir oyun önerisi getir (yenile)
   Future<void> refreshGameRecommendation() async {
-    if (_lastQuery.isNotEmpty) {
+    // Aktif filtreye veya özel aramaya göre yenileme yap
+    if (_isCustomSearch) {
+      // Özel arama varsa aynı sorguyla devam et
       await generateGameRecommendation(_lastQuery);
+    } else if (_activeGenreFilter != 'Tümü') {
+      // Belirli bir tür filtresi varsa
+      await generateGameRecommendation('popüler oyun önerisi', genreFilter: _activeGenreFilter);
     } else {
+      // Hiçbir özel durumda değilsek rastgele getir
       await generateGameRecommendation('popüler oyun önerisi');
     }
   }
@@ -136,8 +296,14 @@ class GameViewModel extends ChangeNotifier {
   Future<void> loadSimilarGameRecommendation() async {
     if (_games.isNotEmpty) {
       final currentGame = _games.first;
-      final query = 'şuna benzer oyun önerisi: ${currentGame.title}';
-      await generateGameRecommendation(query);
+      String query = 'şuna benzer oyun önerisi: ${currentGame.title}';
+      
+      // Aktif tür filtresi varsa benzer oyun da o türden olsun
+      if (_activeGenreFilter != 'Tümü') {
+        query += ' $_activeGenreFilter türünde';
+      }
+      
+      await generateGameRecommendation(query, genreFilter: _activeGenreFilter);
     } else {
       await refreshGameRecommendation();
     }
@@ -167,42 +333,65 @@ class GameViewModel extends ChangeNotifier {
     }
   }
   
+  /// Kaydırma sırasında gerekirse daha fazla oyun yükle
+  Future<void> checkAndLoadMoreGames(int currentIndex) async {
+    // Eğer kullanıcı listenin sonuna yaklaştıysa yeni oyunlar yükle
+    if (currentIndex >= _games.length - 2) {
+      await loadMoreGames();
+    }
+  }
+  
   /// Yeni oyunlar yükle ve listeye ekle (sonsuz kaydırma için)
   Future<void> loadMoreGames() async {
     if (_state == GameLoadingState.loading) {
       return; // Zaten yükleme yapılıyorsa çıkış yap
     }
     
-    // Rastgele çeşitli sorgu terimleri kullanalım
-    final List<String> queryTerms = [
-      'popüler oyun önerisi',
-      'macera oyunu',
-      'strateji oyunu',
-      'yarış oyunu',
-      'rol yapma oyunu',
-      'aksiyon oyunu',
-      'simülasyon oyunu',
-      'platform oyunu',
-      'bulmaca oyunu',
-      'spor oyunu'
-    ];
-    
-    // Rastgele bir sorgu terimi seç
-    final random = Random();
-    final query = queryTerms[random.nextInt(queryTerms.length)];
-    
-    await _loadMoreGamesByQuery(query);
+    // Aktif filtreye veya özel aramaya bağlı olarak yükleme yapalım
+    if (_isCustomSearch) {
+      // Özel bir arama varsa aynı sorguyla devam et
+      await _loadMoreGamesByQuery(_lastQuery, _activeGenreFilter);
+    } else if (_activeGenreFilter != 'Tümü') {
+      // Belirli bir tür filtresi varsa
+      await _loadMoreGamesByQuery('$_activeGenreFilter oyunu önerisi', _activeGenreFilter);
+    } else {
+      // Hiçbir özel durumda değilsek rastgele kategori seçelim
+      final List<String> queryTerms = [
+        'popüler oyun önerisi',
+        'macera oyunu',
+        'strateji oyunu',
+        'yarış oyunu',
+        'rol yapma oyunu',
+        'aksiyon oyunu',
+        'simülasyon oyunu',
+        'platform oyunu',
+        'bulmaca oyunu',
+        'spor oyunu'
+      ];
+      
+      // Rastgele bir sorgu terimi seç
+      final random = Random();
+      final query = queryTerms[random.nextInt(queryTerms.length)];
+      
+      await _loadMoreGamesByQuery(query, _activeGenreFilter);
+    }
   }
   
   /// Belirli bir sorguya göre oyun yükle ve mevcut listeye ekle
-  Future<void> _loadMoreGamesByQuery(String query) async {
+  Future<void> _loadMoreGamesByQuery(String query, String genreFilter) async {
     // Yükleniyor durumunu güncelle
     _state = GameLoadingState.loading;
     notifyListeners();
     
     try {
       // Gemini'den oyun önerisi al
-      final gameRecommendations = await _geminiService.generateGameRecommendation(query);
+      // Tür filtresi varsa sorguyu zenginleştir
+      String finalQuery = query;
+      if (genreFilter != 'Tümü' && !finalQuery.toLowerCase().contains(genreFilter.toLowerCase())) {
+        finalQuery = '$genreFilter türünde $query';
+      }
+      
+      final gameRecommendations = await _geminiService.generateGameRecommendation(finalQuery);
       
       if (gameRecommendations.isEmpty) {
         _state = GameLoadingState.loaded; // Boş liste gelirse sadece durumu güncelle
@@ -218,10 +407,30 @@ class GameViewModel extends ChangeNotifier {
         return;
       }
       
+      // Eğer aktif bir tür filtresi varsa, gelen oyunları filtrele
+      List<Game> filteredGames = gameRecommendations;
+      if (genreFilter != 'Tümü') {
+        filteredGames = gameRecommendations
+            .where((game) => 
+                game.genre.toLowerCase().contains(genreFilter.toLowerCase()) || 
+                genreFilter.toLowerCase().contains(game.genre.toLowerCase()))
+            .toList();
+        
+        // Filtrelenmiş liste boşsa, tüm oyunları kullan ama türlerini güncelle
+        if (filteredGames.isEmpty) {
+          filteredGames = gameRecommendations.map((game) {
+            // Genre'yi aktif filtreye uygun olacak şekilde güncelle
+            return game.copyWith(
+              genre: genreFilter
+            );
+          }).toList();
+        }
+      }
+      
       // Her bir oyun için Wikipedia'dan görsel ve ek içerik al
       final enrichedGames = <Game>[];
       
-      for (final game in gameRecommendations) {
+      for (final game in filteredGames) {
         final String searchTitle = game.metadata?['searchTitle'] ?? game.title;
         
         try {
@@ -239,6 +448,40 @@ class GameViewModel extends ChangeNotifier {
               additionalImages = null;
             }
             
+            // Oyun değerlendirmeleri ve puanlarını getir
+            Map<String, dynamic>? reviewsAndRatings;
+            try {
+              reviewsAndRatings = await _geminiService.fetchGameReviewsAndRatings(game.title);
+            } catch (e) {
+              print("Oyun değerlendirmeleri alınırken hata: $e");
+              reviewsAndRatings = null;
+            }
+            
+            // Derecelendirme ve yorumları güvenli şekilde ayarla
+            Map<String, dynamic>? ratings = null;
+            List<Map<String, dynamic>>? reviews = null;
+            
+            if (reviewsAndRatings != null) {
+              // Ratings verisini güvenli şekilde al
+              if (reviewsAndRatings.containsKey('ratings') && reviewsAndRatings['ratings'] is Map) {
+                ratings = Map<String, dynamic>.from(reviewsAndRatings['ratings']);
+              }
+              
+              // Reviews verisini güvenli şekilde al
+              if (reviewsAndRatings.containsKey('reviews') && reviewsAndRatings['reviews'] is List) {
+                try {
+                  reviews = (reviewsAndRatings['reviews'] as List)
+                      .map((item) => item is Map 
+                          ? Map<String, dynamic>.from(item) 
+                          : <String, dynamic>{})
+                      .toList();
+                } catch (e) {
+                  print("Reviews dönüştürme hatası: $e");
+                  reviews = null;
+                }
+              }
+            }
+            
             // Zenginleştirilmiş oyun bilgisi oluştur
             final enrichedGame = game.copyWith(
               imageUrl: wikiData['imageUrl'] ?? '',
@@ -247,16 +490,96 @@ class GameViewModel extends ChangeNotifier {
                 ...?game.metadata,
                 'wikiUrl': wikiData['url'] ?? '',
               },
+              ratings: ratings,
+              reviews: reviews,
             );
             
             enrichedGames.add(enrichedGame);
           } else {
-            // Wikipedia'da bulunamadıysa olduğu gibi ekle
-            enrichedGames.add(game);
+            // Sadece değerlendirmeleri getir
+            Map<String, dynamic>? reviewsAndRatings;
+            try {
+              reviewsAndRatings = await _geminiService.fetchGameReviewsAndRatings(game.title);
+            } catch (e) {
+              print("Oyun değerlendirmeleri alınırken hata: $e");
+              reviewsAndRatings = null;
+            }
+            
+            // Derecelendirme ve yorumları güvenli şekilde ayarla
+            Map<String, dynamic>? ratings = null;
+            List<Map<String, dynamic>>? reviews = null;
+            
+            if (reviewsAndRatings != null) {
+              // Ratings verisini güvenli şekilde al
+              if (reviewsAndRatings.containsKey('ratings') && reviewsAndRatings['ratings'] is Map) {
+                ratings = Map<String, dynamic>.from(reviewsAndRatings['ratings']);
+              }
+              
+              // Reviews verisini güvenli şekilde al
+              if (reviewsAndRatings.containsKey('reviews') && reviewsAndRatings['reviews'] is List) {
+                try {
+                  reviews = (reviewsAndRatings['reviews'] as List)
+                      .map((item) => item is Map 
+                          ? Map<String, dynamic>.from(item) 
+                          : <String, dynamic>{})
+                      .toList();
+                } catch (e) {
+                  print("Reviews dönüştürme hatası: $e");
+                  reviews = null;
+                }
+              }
+            }
+            
+            // Wikipedia'da bulunamadıysa olduğu gibi ekle, varsa değerlendirmeleri ekle
+            final enrichedGame = game.copyWith(
+              ratings: ratings,
+              reviews: reviews,
+            );
+            
+            enrichedGames.add(enrichedGame);
           }
         } catch (e) {
-          // Hata durumunda orijinal oyunu ekle
-          enrichedGames.add(game);
+          // Sadece değerlendirmeleri getir
+          Map<String, dynamic>? reviewsAndRatings;
+          try {
+            reviewsAndRatings = await _geminiService.fetchGameReviewsAndRatings(game.title);
+          } catch (e) {
+            print("Oyun değerlendirmeleri alınırken hata: $e");
+            reviewsAndRatings = null;
+          }
+          
+          // Derecelendirme ve yorumları güvenli şekilde ayarla
+          Map<String, dynamic>? ratings = null;
+          List<Map<String, dynamic>>? reviews = null;
+          
+          if (reviewsAndRatings != null) {
+            // Ratings verisini güvenli şekilde al
+            if (reviewsAndRatings.containsKey('ratings') && reviewsAndRatings['ratings'] is Map) {
+              ratings = Map<String, dynamic>.from(reviewsAndRatings['ratings']);
+            }
+            
+            // Reviews verisini güvenli şekilde al
+            if (reviewsAndRatings.containsKey('reviews') && reviewsAndRatings['reviews'] is List) {
+              try {
+                reviews = (reviewsAndRatings['reviews'] as List)
+                    .map((item) => item is Map 
+                        ? Map<String, dynamic>.from(item) 
+                        : <String, dynamic>{})
+                    .toList();
+              } catch (e) {
+                print("Reviews dönüştürme hatası: $e");
+                reviews = null;
+              }
+            }
+          }
+          
+          // Hata durumunda orijinal oyunu ekle, varsa değerlendirmeleri ekle
+          final enrichedGame = game.copyWith(
+            ratings: ratings,
+            reviews: reviews,
+          );
+          
+          enrichedGames.add(enrichedGame);
         }
       }
       
@@ -270,14 +593,6 @@ class GameViewModel extends ChangeNotifier {
     } finally {
       _isSearching = false;
       notifyListeners();
-    }
-  }
-  
-  /// Kaydırma sırasında gerekirse daha fazla oyun yükle
-  Future<void> checkAndLoadMoreGames(int currentIndex) async {
-    // Eğer kullanıcı listenin sonuna yaklaştıysa yeni oyunlar yükle
-    if (currentIndex >= _games.length - 2) {
-      await loadMoreGames();
     }
   }
 } 

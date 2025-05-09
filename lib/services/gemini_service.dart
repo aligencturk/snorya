@@ -231,4 +231,114 @@ Kullanıcı isteği: $query''';
     
     return defaultValue;
   }
+
+  /// Belirli bir oyun için gerçek puanları ve değerlendirmeleri getir
+  Future<Map<String, dynamic>> fetchGameReviewsAndRatings(String gameTitle) async {
+    try {
+      final prompt = '''Lütfen "${gameTitle}" oyunu için GERÇEKLİĞİ doğrulanabilir, GERÇEK puanları ve yorumlarını aşağıdaki sıkı JSON formatında ver:
+      {
+        "ratings": {
+          "metacritic": {
+            "score": [0-100 arası sayı veya null (bilinmiyorsa)],
+            "count": [kaç değerlendirme olduğu, bilinmiyorsa null],
+            "url": "metacritic sayfasının tam URL'i"
+          },
+          "ign": {
+            "score": [0-10 arası sayı veya null],
+            "reviewer": "Eleştirmenin adı (bilinmiyorsa boş)",
+            "summary": "Kısa özet (varsa, yoksa boş)"
+          },
+          "steam": {
+            "positive_percent": [pozitif yorumların yüzdesi veya null],
+            "review_count": [toplam değerlendirme sayısı veya null],
+            "summary": "Kullanıcı değerlendirme özeti (Çok Olumlu, Olumlu, Karma, vb.)"
+          }
+        },
+        "reviews": [
+          {
+            "source": "Kaynak site/dergi ismi",
+            "author": "Eleştirmenin adı",
+            "score": "Puan (10 üzerinden 8 gibi)",
+            "comment": "Eleştirmenin yaptığı kısa yorum veya değerlendirme (1-2 cümle)",
+            "date": "Değerlendirme tarihi (biliniyorsa)"
+          }
+        ],
+        "data_availability": "tam" | "kısmi" | "bulunamadı"
+      }
+      
+      ÖNEMLİ:
+      - SADECE GERÇEK ve DOĞRULANMIŞ veriler kullan. Yanlış bilgi vermektense "null" veya boş değerler tercih edilmelidir.
+      - Eğer oyun hakkında yeterli değerlendirme veya puan verisi bulamıyorsan data_availability alanını "bulunamadı" olarak ayarla.
+      - Değerlendirmeler ve puanlar TÜRKÇE olmalıdır.
+      - Steam'de oyun yoksa Steam alanını boş bırak.
+      - Değerlendirmeler bölümünde en az 2, en fazla 5 farklı ve GERÇEK yorum ekle.
+      - Herhangi bir açıklama veya ek metin ekleme, SADECE JSON döndür.''';
+      
+      final content = [Content.text(prompt)];
+      final response = await _model.generateContent(content);
+      
+      if (response.text != null && response.text!.isNotEmpty) {
+        try {
+          // JSON formatına çevirme
+          String jsonText = response.text!;
+          
+          // Debug: Yanıtı kontrol et
+          print("API yanıtı (puanlar ve yorumlar): ${jsonText}");
+          
+          // JSON'ı ayıkla
+          if (jsonText.contains("{") && jsonText.contains("}")) {
+            int startIndex = jsonText.indexOf('{');
+            int endIndex = jsonText.lastIndexOf('}') + 1;
+            
+            if (startIndex >= 0 && endIndex > startIndex) {
+              jsonText = jsonText.substring(startIndex, endIndex);
+            }
+          }
+          
+          jsonText = jsonText.replaceAll("```json", "").replaceAll("```", "").trim();
+          
+          // JSON'ı parse et
+          final Map<String, dynamic> reviewData = Map<String, dynamic>.from(
+            jsonDecode(jsonText)
+          );
+          
+          // 'reviews' alanını doğru formata dönüştür
+          if (reviewData.containsKey('reviews') && reviewData['reviews'] is List) {
+            List<dynamic> reviewsList = reviewData['reviews'] as List<dynamic>;
+            reviewData['reviews'] = reviewsList
+                .map((item) => item is Map 
+                    ? Map<String, dynamic>.from(item) 
+                    : <String, dynamic>{})
+                .toList();
+          }
+          
+          return reviewData;
+        } catch (e) {
+          print("JSON ayrıştırma hatası (değerlendirmeler): $e");
+          // Hata durumunda boş veri döndür
+          return {
+            "ratings": {},
+            "reviews": [],
+            "data_availability": "bulunamadı",
+            "error": "Veri formatı hatası: $e"
+          };
+        }
+      } else {
+        return {
+          "ratings": {},
+          "reviews": [],
+          "data_availability": "bulunamadı",
+          "error": "Yanıt alınamadı"
+        };
+      }
+    } catch (e) {
+      print("Oyun değerlendirmeleri getirme hatası: $e");
+      return {
+        "ratings": {},
+        "reviews": [],
+        "data_availability": "bulunamadı",
+        "error": "Hata: $e"
+      };
+    }
+  }
 } 
