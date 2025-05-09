@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/favorites_view_model.dart';
 import '../components/article_card.dart';
+import '../../viewmodels/article_view_model.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -114,6 +115,52 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               Navigator.pop(context);
             },
             onRefresh: () => Navigator.pop(context),
+            onLoadSimilarArticle: () {
+              // Önce modal'ı kapat
+              Navigator.pop(context);
+              
+              // Ana sayfadaki ViewModel'e erişip benzer makale getir
+              final articleViewModel = Provider.of<ArticleViewModel>(context, listen: false);
+              
+              // Yükleniyor bildirimi göster
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 12),
+                      Text('Benzer içerik aranıyor...'),
+                    ],
+                  ),
+                  behavior: SnackBarBehavior.floating,
+                  duration: const Duration(milliseconds: 2000),
+                ),
+              );
+              
+              // Benzer içerik yükle ve ana sayfaya dön
+              articleViewModel.loadSimilarArticle().then((_) {
+                // Ana sayfaya dön
+                Navigator.pop(context);
+                
+                // Yeni içerik bildirimi göster
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green),
+                        const SizedBox(width: 12),
+                        Text('Benzer içerik bulundu, ana sayfaya dönülüyor...'),
+                      ],
+                    ),
+                    behavior: SnackBarBehavior.floating,
+                    duration: const Duration(milliseconds: 1500),
+                  ),
+                );
+              });
+            },
           ),
         );
       },

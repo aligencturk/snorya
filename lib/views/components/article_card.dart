@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:ui';
 import '../../models/article.dart';
 
@@ -8,6 +9,7 @@ class ArticleCard extends StatefulWidget {
   final VoidCallback? onRefresh;
   final VoidCallback? onNavigateToFavorites;
   final VoidCallback? onVerticalScroll;
+  final VoidCallback? onLoadSimilarArticle;
   
   const ArticleCard({
     super.key,
@@ -16,19 +18,50 @@ class ArticleCard extends StatefulWidget {
     this.onRefresh,
     this.onNavigateToFavorites,
     this.onVerticalScroll,
+    this.onLoadSimilarArticle,
   });
 
   @override
   State<ArticleCard> createState() => _ArticleCardState();
 }
 
-class _ArticleCardState extends State<ArticleCard> {
+class _ArticleCardState extends State<ArticleCard> with SingleTickerProviderStateMixin {
   final PageController _pageController = PageController();
   int _currentPageIndex = 0;
+  late AnimationController _buttonAnimationController;
+  late Animation<double> _buttonAnimation;
+  bool _buttonsVisible = false;
   
+  @override
+  void initState() {
+    super.initState();
+    
+    // Buton animasyonu için kontrolcü oluştur
+    _buttonAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    
+    _buttonAnimation = CurvedAnimation(
+      parent: _buttonAnimationController,
+      curve: Curves.easeInOut,
+    );
+    
+    // Butonları 0.5 saniye sonra göster
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() {
+          _buttonsVisible = true;
+        });
+        _buttonAnimationController.forward();
+      }
+    });
+  }
+
   @override
   void dispose() {
     _pageController.dispose();
+    _buttonAnimationController.dispose();
     super.dispose();
   }
 
@@ -174,80 +207,122 @@ class _ArticleCardState extends State<ArticleCard> {
                             
                             const SizedBox(height: 24),
                             
-                            // Tam içeriği göster butonu - Parlak tasarım
-                            Center(
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // Makalenin tamamını oku butonu
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          Colors.blue.shade600,
-                                          Colors.blue.shade800,
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(30),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.blue.shade700.withOpacity(0.5),
-                                          spreadRadius: 1,
-                                          blurRadius: 15,
-                                          offset: const Offset(0, 5),
-                                        ),
+                            // Alt buton grubu
+                            Column(
+                              children: [
+                                // Tam makaleyi okuma butonu
+                                Container(
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Colors.blue.shade600,
+                                        Colors.blue.shade800,
                                       ],
                                     ),
-                                    child: ElevatedButton.icon(
-                                      onPressed: () {
-                                        _pageController.animateToPage(
-                                          1,
-                                          duration: const Duration(milliseconds: 500),
-                                          curve: Curves.easeOutQuint,
-                                        );
-                                      },
-                                      icon: const Icon(Icons.article, color: Colors.white),
-                                      label: const Text(
-                                        'Makalenin Tamamını Oku',
-                                        style: TextStyle(
-                                          color: Colors.white, 
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                    borderRadius: BorderRadius.circular(30),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.blue.shade700.withOpacity(0.5),
+                                        spreadRadius: 1,
+                                        blurRadius: 15,
+                                        offset: const Offset(0, 5),
                                       ),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.transparent,
-                                        foregroundColor: Colors.white,
-                                        elevation: 0,
-                                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(30),
-                                        ),
+                                    ],
+                                  ),
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      _pageController.animateToPage(
+                                        1,
+                                        duration: const Duration(milliseconds: 500),
+                                        curve: Curves.easeOutQuint,
+                                      );
+                                    },
+                                    icon: const Icon(Icons.article, color: Colors.white),
+                                    label: const Text(
+                                      'Makalenin Tamamını Oku',
+                                      style: TextStyle(
+                                        color: Colors.white, 
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(30),
                                       ),
                                     ),
                                   ),
-                                  // Aşağı kaydırma butonu
-                                  const SizedBox(width: 10),
-                                  Container(
-                                    height: 44,
-                                    width: 44,
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          Colors.blue.shade600,
-                                          Colors.blue.shade800,
-                                        ],
+                                ),
+                                // Benzer bilgi getir butonu
+                                const SizedBox(height: 10),
+                                Container(
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Colors.purple.shade400,
+                                        Colors.purple.shade700,
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(30),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.purple.shade700.withOpacity(0.4),
+                                        spreadRadius: 1,
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 3),
                                       ),
+                                    ],
+                                  ),
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      if (widget.onLoadSimilarArticle != null) {
+                                        HapticFeedback.mediumImpact(); // Titreşim ile geri bildirim
+                                        widget.onLoadSimilarArticle!();
+                                      }
+                                    },
+                                    icon: const Icon(Icons.swap_horiz, color: Colors.white),
+                                    label: const Text(
+                                      'Benzer Bilgi Getir',
+                                      style: TextStyle(
+                                        color: Colors.white, 
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(30),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Aşağı kaydırma butonu - sağ altta bırakıyoruz
+                                const SizedBox(height: 16),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Container(
+                                    height: 40,
+                                    width: 40,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.4),
                                       shape: BoxShape.circle,
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.blue.shade700.withOpacity(0.5),
+                                          color: Colors.black.withOpacity(0.2),
                                           spreadRadius: 1,
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 3),
+                                          blurRadius: 5,
                                         ),
                                       ],
                                     ),
@@ -267,11 +342,9 @@ class _ArticleCardState extends State<ArticleCard> {
                                       padding: EdgeInsets.zero,
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                            // Altta küçük bir boşluk bırak
-                            const SizedBox(height: 20),
                           ],
                         ),
                       ),
@@ -285,59 +358,118 @@ class _ArticleCardState extends State<ArticleCard> {
             Positioned(
               top: 55,
               right: 20,
-              child: Row(
-                children: [
-                  // Favoriler sayfasına git butonu
-                  Container(
-                    height: 40,
-                    width: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          spreadRadius: 1,
-                          blurRadius: 5,
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.star, color: Colors.amber, size: 20),
-                      onPressed: widget.onNavigateToFavorites,
-                      tooltip: 'Favoriler',
-                      padding: EdgeInsets.zero,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Favori butonu
-                  Container(
-                    height: 40,
-                    width: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          spreadRadius: 1,
-                          blurRadius: 5,
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        isFavorite ? Icons.bookmark : Icons.bookmark_border,
-                        color: isFavorite ? Colors.amber : Colors.white,
-                        size: 20,
+              child: AnimatedOpacity(
+                opacity: _buttonsVisible ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.easeInOut,
+                child: ScaleTransition(
+                  scale: _buttonAnimation,
+                  child: Row(
+                    children: [
+                      // Favoriler sayfasına git butonu
+                      TweenAnimationBuilder<double>(
+                        tween: Tween<double>(begin: 0.0, end: 1.0),
+                        duration: const Duration(milliseconds: 800),
+                        curve: Curves.elasticOut,
+                        builder: (context, value, child) {
+                          return Transform.scale(
+                            scale: value,
+                            child: Container(
+                              height: 40,
+                              width: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.4),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    spreadRadius: 1,
+                                    blurRadius: 5,
+                                  ),
+                                ],
+                              ),
+                              child: IconButton(
+                                icon: const Icon(Icons.star, color: Colors.amber, size: 20),
+                                onPressed: () {
+                                  // Animasyonlu tıklama efekti
+                                  HapticFeedback.mediumImpact();
+                                  // Ölçek animasyonu
+                                  final _controller = AnimationController(
+                                    duration: const Duration(milliseconds: 150),
+                                    vsync: this,
+                                  );
+                                  final _scaleAnimation = Tween<double>(begin: 1.0, end: 0.8).animate(_controller);
+                                  _controller.forward().then((_) => _controller.reverse()).then((_) => _controller.dispose());
+                                  
+                                  if (widget.onNavigateToFavorites != null) {
+                                    widget.onNavigateToFavorites!();
+                                  }
+                                },
+                                tooltip: 'Favoriler',
+                                padding: EdgeInsets.zero,
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                      onPressed: widget.onFavoriteToggle,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      visualDensity: VisualDensity.compact,
-                    ),
+                      const SizedBox(width: 12),
+                      // Favori butonu
+                      TweenAnimationBuilder<double>(
+                        tween: Tween<double>(begin: 0.0, end: 1.0),
+                        duration: const Duration(milliseconds: 800),
+                        curve: Curves.elasticOut,
+                        builder: (context, value, child) {
+                          return Transform.scale(
+                            scale: value,
+                            child: Container(
+                              height: 40,
+                              width: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.4),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    spreadRadius: 1,
+                                    blurRadius: 5,
+                                  ),
+                                ],
+                              ),
+                              child: IconButton(
+                                icon: AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 300),
+                                  transitionBuilder: (Widget child, Animation<double> animation) {
+                                    return ScaleTransition(
+                                      scale: animation,
+                                      child: FadeTransition(
+                                        opacity: animation,
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                                  child: Icon(
+                                    isFavorite ? Icons.bookmark : Icons.bookmark_border,
+                                    key: ValueKey<bool>(isFavorite),
+                                    color: isFavorite ? Colors.amber : Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                                onPressed: () {
+                                  // Animasyonlu tıklama efekti
+                                  HapticFeedback.mediumImpact();
+                                  widget.onFavoriteToggle();
+                                },
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ],
@@ -432,7 +564,13 @@ class _ArticleCardState extends State<ArticleCard> {
                         color: Colors.amber,
                         size: 20,
                       ),
-                      onPressed: widget.onNavigateToFavorites,
+                      onPressed: () {
+                        // Animasyonlu tıklama efekti
+                        HapticFeedback.mediumImpact();
+                        if (widget.onNavigateToFavorites != null) {
+                          widget.onNavigateToFavorites!();
+                        }
+                      },
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       visualDensity: VisualDensity.compact,
@@ -455,12 +593,29 @@ class _ArticleCardState extends State<ArticleCard> {
                       ],
                     ),
                     child: IconButton(
-                      icon: Icon(
-                        widget.article.isFavorite ? Icons.bookmark : Icons.bookmark_border,
-                        color: widget.article.isFavorite ? Colors.amber : Colors.white,
-                        size: 20,
+                      icon: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        transitionBuilder: (Widget child, Animation<double> animation) {
+                          return ScaleTransition(
+                            scale: animation,
+                            child: FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: Icon(
+                          widget.article.isFavorite ? Icons.bookmark : Icons.bookmark_border,
+                          key: ValueKey<bool>(widget.article.isFavorite),
+                          color: widget.article.isFavorite ? Colors.amber : Colors.white,
+                          size: 20,
+                        ),
                       ),
-                      onPressed: widget.onFavoriteToggle,
+                      onPressed: () {
+                        // Animasyonlu tıklama efekti
+                        HapticFeedback.mediumImpact();
+                        widget.onFavoriteToggle();
+                      },
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       visualDensity: VisualDensity.compact,

@@ -412,4 +412,62 @@ class ArticleViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  // Mevcut makaleye benzer içerik getir
+  Future<void> loadSimilarArticle() async {
+    try {
+      if (_articles.isEmpty || _currentIndex >= _articles.length) return;
+      
+      final currentArticle = _articles[_currentIndex];
+      
+      _state = ArticleLoadingState.loading;
+      notifyListeners();
+
+      // Wikipediadam benzer makale başlığı al
+      final title = await _wikiService.getSimilarArticleTitle(currentArticle.title);
+
+      // Makale içeriğini al
+      final content = await _wikiService.getArticleContent(title);
+
+      // Makale görselini al
+      final imageUrl = await _wikiService.getArticleImage(title);
+
+      // Özet oluştur
+      String summary;
+      try {
+        summary = await _geminiService.generateSummary(content);
+      } catch (e) {
+        summary = content.length > 200 ? '${content.substring(0, 200)}...' : content;
+      }
+
+      // Makale nesnesini oluştur
+      var article = Article(
+        title: title,
+        content: content,
+        summary: summary,
+        imageUrl: imageUrl,
+        category: _selectedCategory,
+      );
+
+      // Favorilerde var mı kontrol et
+      final favorites = await _storageService.loadFavorites();
+      if (favorites.any((fav) => fav.title == article.title)) {
+        article = article.copyWith(isFavorite: true);
+      }
+
+      // Listeye ekle
+      _articles.add(article);
+      _currentIndex = _articles.length - 1;
+
+      _state = ArticleLoadingState.loaded;
+      notifyListeners();
+      
+      return; // Future tamamlandı
+    } catch (e) {
+      _state = ArticleLoadingState.error;
+      _errorMessage = 'Benzer makale yüklenirken bir hata oluştu: $e';
+      notifyListeners();
+      throw e; // Hatayı ileten tarafa gönder ki uygun şekilde işlesin
+    }
+  }
 } 

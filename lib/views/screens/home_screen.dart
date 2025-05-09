@@ -171,20 +171,106 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     opacity: _animation,
                     child: ArticleCard(
                       article: article,
-                      onFavoriteToggle: () => viewModel.toggleFavorite(),
-                      onNavigateToFavorites: () => _navigateToFavorites(context),
+                      onFavoriteToggle: () {
+                        // Favori durumunu değiştir
+                        viewModel.toggleFavorite();
+                        
+                        // Kullanıcıya görsel geri bildirim
+                        final message = article.isFavorite ? 'Favorilerden kaldırıldı' : 'Favorilere eklendi';
+                        final icon = article.isFavorite ? Icons.bookmark_remove : Icons.bookmark_add;
+                        
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                Icon(icon, color: Colors.amber),
+                                const SizedBox(width: 12),
+                                Text(message),
+                              ],
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(milliseconds: 1500),
+                          ),
+                        );
+                      },
+                      onNavigateToFavorites: () {
+                        // Favoriler sayfasına git
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const FavoritesScreen(),
+                          ),
+                        );
+                      },
+                      onRefresh: () {
+                        // Yeni bir makale yükle
+                        viewModel.refreshArticle();
+                      },
                       onVerticalScroll: () {
-                        // Bir sonraki makaleye geçiş
-                        if (_pageController.page != null && index < viewModel.articles.length - 1) {
-                          _pageController.animateToPage(
-                            index + 1,
-                            duration: const Duration(milliseconds: 500),
-                            curve: Curves.easeOutCubic,
+                        // Bir sonraki makaleye kaydır
+                        if (_pageController.page!.toInt() < viewModel.articles.length - 1) {
+                          _pageController.nextPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOutQuint,
                           );
-                        } else {
-                          // Son makaledeysek yeni makale yükle
-                          viewModel.loadNextArticle();
                         }
+                      },
+                      onLoadSimilarArticle: () {
+                        // Benzer içerik yükle
+                        viewModel.loadSimilarArticle().then((_) {
+                          // Yeni makaleye animasyonlu geçiş yap
+                          if (viewModel.articles.isNotEmpty) {
+                            // Son makaleye (yeni eklenen) geçiş yap
+                            _animationController.reset();
+                            
+                            // Sayfa geçişi yapılıyor bildirimi
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    Icon(Icons.check_circle, color: Colors.green),
+                                    const SizedBox(width: 12),
+                                    Text('Benzer içerik bulundu!'),
+                                  ],
+                                ),
+                                behavior: SnackBarBehavior.floating,
+                                duration: const Duration(milliseconds: 1500),
+                              ),
+                            );
+                            
+                            // Sayfa geçişi animasyonu
+                            Future.delayed(const Duration(milliseconds: 300), () {
+                              _pageController.animateToPage(
+                                viewModel.articles.length - 1,
+                                duration: const Duration(milliseconds: 800),
+                                curve: Curves.easeOutQuint,
+                              );
+                              
+                              // Sayfa geçtikten sonra buton animasyonunu başlat
+                              Future.delayed(const Duration(milliseconds: 800), () {
+                                _animationController.forward();
+                              });
+                            });
+                          }
+                        });
+                        
+                        // Yükleniyor bildirimi göster
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 12),
+                                Text('Benzer içerik aranıyor...'),
+                              ],
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(milliseconds: 2000),
+                          ),
+                        );
                       },
                     ),
                   );

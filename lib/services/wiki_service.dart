@@ -744,4 +744,89 @@ class WikiService {
   void clearAllCategoryCache() {
     _categoryArticleCache.clear();
   }
+
+  // Belirli bir başlığa sahip makaleye benzer içerik getirir
+  Future<String> getSimilarArticleTitle(String currentTitle) async {
+    try {
+      // Önce başlığı kategorilere ayırıp anahtar kelimeler oluştur
+      final keywords = await _extractKeywordsFromTitle(currentTitle);
+      
+      if (keywords.isEmpty) {
+        // Anahtar kelime çıkarılamadıysa, rastgele bir makale getir
+        return await getRandomArticleTitle(AppConstants.categoryMixed);
+      }
+      
+      // Rastgele bir anahtar kelime seç
+      final randomKeyword = keywords[_random.nextInt(keywords.length)];
+      
+      // Seçilen anahtar kelime ile arama yap
+      final Uri searchUrl = Uri.parse(
+        '${AppConstants.wikipediaApiBaseUrl}?action=query&format=json&list=search&srsearch=${Uri.encodeComponent(randomKeyword)}&srlimit=20'
+      );
+      
+      final searchResponse = await http.get(searchUrl);
+      
+      if (searchResponse.statusCode == 200) {
+        final searchData = json.decode(searchResponse.body);
+        final searchResults = searchData['query']['search'] as List;
+        
+        if (searchResults.isNotEmpty) {
+          // Benzer makaleleri filtrele (mevcut makaleyi hariç tut)
+          final similarArticles = searchResults
+              .map<String>((result) => result['title'] as String)
+              .where((title) => title != currentTitle)
+              .toList();
+          
+          if (similarArticles.isNotEmpty) {
+            // Rastgele bir benzer makale seç
+            return similarArticles[_random.nextInt(similarArticles.length)];
+          }
+        }
+      }
+      
+      // Hiçbir şey bulunamazsa, kategoriye göre rastgele bir makale getir
+      return await getRandomArticleTitle(AppConstants.categoryMixed);
+    } catch (e) {
+      throw Exception('Benzer makale getirilirken hata oluştu: $e');
+    }
+  }
+  
+  // Makale başlığından anahtar kelimeler çıkar
+  Future<List<String>> _extractKeywordsFromTitle(String title) async {
+    try {
+      // Başlığı kelimelere ayır ve kısa kelimeleri filtrele
+      final words = title.split(' ')
+          .where((word) => word.length > 3) // 3 karakterden uzun kelimeleri al
+          .map((word) => word.replaceAll(RegExp(r'[^\w\s]'), '')) // Özel karakterleri temizle
+          .where((word) => word.isNotEmpty) 
+          .toList();
+      
+      // Eğer yeterli kelime yoksa makale içeriğini de kullan
+      if (words.length < 2) {
+        final content = await getArticleContent(title);
+        final contentWords = content.split(' ')
+            .where((word) => word.length > 4) // İçerikten daha uzun kelimeleri al
+            .take(50) // İlk 50 kelimeyi al
+            .map((word) => word.replaceAll(RegExp(r'[^\w\s]'), ''))
+            .where((word) => word.isNotEmpty)
+            .toList();
+        
+        // Kelimelerden rastgele 5 tanesini seç
+        final selectedWords = <String>[];
+        for (int i = 0; i < 5 && contentWords.isNotEmpty; i++) {
+          final randomIndex = _random.nextInt(contentWords.length);
+          selectedWords.add(contentWords[randomIndex]);
+          contentWords.removeAt(randomIndex);
+        }
+        
+        return [...words, ...selectedWords];
+      }
+      
+      return words;
+    } catch (e) {
+      print('Anahtar kelimeler çıkarılırken hata: $e');
+      // Hata durumunda başlığı ayırıp döndür
+      return title.split(' ');
+    }
+  }
 } 
