@@ -84,41 +84,85 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           builder: (context, child) {
             return Transform.scale(
               scale: _animation.value,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.auto_awesome,
-                    color: Colors.white,
-                    size: 20,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black.withOpacity(0.5),
-                        blurRadius: 5,
+              child: Consumer<ArticleViewModel>(
+                builder: (context, viewModel, child) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.auto_awesome,
+                            color: Colors.white,
+                            size: 20,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withOpacity(0.5),
+                                blurRadius: 5,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Snorya',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 22,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black45,
+                                  blurRadius: 10.0,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Snorya',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 22,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black45,
-                          blurRadius: 10.0,
+                      if (viewModel.selectedCategory != AppConstants.categoryMixed)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 28, top: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _getCategoryIcon(viewModel.selectedCategory),
+                                color: Colors.white,
+                                size: 12,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black45,
+                                    blurRadius: 8.0,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                viewModel.selectedCategory,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black45,
+                                      blurRadius: 8.0,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                }
               ),
             );
           },
         ),
-        
       ),
       body: Consumer<ArticleViewModel>(
         builder: (context, viewModel, child) {
@@ -632,5 +676,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
       },
     );
+  }
+
+  // Kategori ikonunu belirle
+  IconData _getCategoryIcon(String category) {
+    switch (category) {
+      case AppConstants.categoryScience:
+        return Icons.science;
+      case AppConstants.categoryHistory:
+        return Icons.history_edu;
+      case AppConstants.categoryTechnology:
+        return Icons.computer;
+      case AppConstants.categoryCulture:
+        return Icons.theater_comedy;
+      case AppConstants.categoryGames:
+        return Icons.sports_esports;
+      case AppConstants.categoryMoviesTv:
+        return Icons.movie;
+      case AppConstants.categoryCustom:
+        return Icons.topic;
+      default:
+        return Icons.shuffle; // Karışık kategori
+    }
   }
 } 
