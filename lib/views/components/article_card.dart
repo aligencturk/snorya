@@ -359,8 +359,8 @@ class _ArticleCardState extends State<ArticleCard> with SingleTickerProviderStat
               top: 55,
               right: 20,
               child: AnimatedOpacity(
-                opacity: _buttonsVisible ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 800),
+                opacity: 0, // Butonları görünmez yap (tamamen kaldırmak yerine)
+                duration: const Duration(milliseconds: 0),
                 curve: Curves.easeInOut,
                 child: ScaleTransition(
                   scale: _buttonAnimation,
@@ -541,84 +541,6 @@ class _ArticleCardState extends State<ArticleCard> with SingleTickerProviderStat
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  // Favorilere Git butonu
-                  Container(
-                    height: 40,
-                    width: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          spreadRadius: 1,
-                          blurRadius: 5,
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.star,
-                        color: Colors.amber,
-                        size: 20,
-                      ),
-                      onPressed: () {
-                        // Animasyonlu tıklama efekti
-                        HapticFeedback.mediumImpact();
-                        if (widget.onNavigateToFavorites != null) {
-                          widget.onNavigateToFavorites!();
-                        }
-                      },
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Favori butonu
-                  Container(
-                    height: 40,
-                    width: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          spreadRadius: 1,
-                          blurRadius: 5,
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        transitionBuilder: (Widget child, Animation<double> animation) {
-                          return ScaleTransition(
-                            scale: animation,
-                            child: FadeTransition(
-                              opacity: animation,
-                              child: child,
-                            ),
-                          );
-                        },
-                        child: Icon(
-                          widget.article.isFavorite ? Icons.bookmark : Icons.bookmark_border,
-                          key: ValueKey<bool>(widget.article.isFavorite),
-                          color: widget.article.isFavorite ? Colors.amber : Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                      onPressed: () {
-                        // Animasyonlu tıklama efekti
-                        HapticFeedback.mediumImpact();
-                        widget.onFavoriteToggle();
-                      },
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      visualDensity: VisualDensity.compact,
                     ),
                   ),
                 ],
