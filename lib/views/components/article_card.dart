@@ -272,21 +272,16 @@ class _ArticleCardState extends State<ArticleCard> {
             
             // Üst butonlar
             Positioned(
-              top: 36,
+              top: 55,
               right: 20,
               child: Row(
                 children: [
                   // Yenile butonu
                   Container(
+                    height: 40,
+                    width: 40,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.black.withOpacity(0.6),
-                          Colors.black.withOpacity(0.4),
-                        ],
-                      ),
+                      color: Colors.black.withOpacity(0.4),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
@@ -297,23 +292,19 @@ class _ArticleCardState extends State<ArticleCard> {
                       ],
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.refresh, color: Colors.white),
+                      icon: const Icon(Icons.refresh, color: Colors.white, size: 20),
                       onPressed: widget.onRefresh,
                       tooltip: 'Yeni Makale',
+                      padding: EdgeInsets.zero,
                     ),
                   ),
                   const SizedBox(width: 12),
                   // Favori butonu
                   Container(
+                    height: 40,
+                    width: 40,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.black.withOpacity(0.6),
-                          Colors.black.withOpacity(0.4),
-                        ],
-                      ),
+                      color: Colors.black.withOpacity(0.4),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
@@ -327,9 +318,12 @@ class _ArticleCardState extends State<ArticleCard> {
                       icon: Icon(
                         isFavorite ? Icons.bookmark : Icons.bookmark_border,
                         color: isFavorite ? Colors.amber : Colors.white,
+                        size: 20,
                       ),
                       onPressed: widget.onFavoriteToggle,
-                      tooltip: isFavorite ? 'Favorilerden Çıkar' : 'Favorilere Ekle',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      visualDensity: VisualDensity.compact,
                     ),
                   ),
                 ],
@@ -350,7 +344,7 @@ class _ArticleCardState extends State<ArticleCard> {
           children: [
             // Modern üst bar
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: Colors.black,
                 boxShadow: [
@@ -365,12 +359,21 @@ class _ArticleCardState extends State<ArticleCard> {
                 children: [
                   // Geri butonu
                   Container(
+                    height: 40,
+                    width: 40,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.black.withOpacity(0.4),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          spreadRadius: 1,
+                          blurRadius: 5,
+                        ),
+                      ],
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
                       onPressed: () {
                         _pageController.animateToPage(
                           0,
@@ -378,7 +381,7 @@ class _ArticleCardState extends State<ArticleCard> {
                           curve: Curves.easeOutQuint,
                         );
                       },
-                      padding: const EdgeInsets.all(8),
+                      padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       visualDensity: VisualDensity.compact,
                       tooltip: 'Geri',
@@ -399,18 +402,27 @@ class _ArticleCardState extends State<ArticleCard> {
                   ),
                   // Favori butonu
                   Container(
+                    height: 40,
+                    width: 40,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.black.withOpacity(0.4),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          spreadRadius: 1,
+                          blurRadius: 5,
+                        ),
+                      ],
                     ),
                     child: IconButton(
                       icon: Icon(
                         widget.article.isFavorite ? Icons.bookmark : Icons.bookmark_border,
                         color: widget.article.isFavorite ? Colors.amber : Colors.white,
-                        size: 18,
+                        size: 20,
                       ),
                       onPressed: widget.onFavoriteToggle,
-                      padding: const EdgeInsets.all(8),
+                      padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       visualDensity: VisualDensity.compact,
                     ),
