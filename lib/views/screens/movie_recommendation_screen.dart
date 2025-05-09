@@ -454,6 +454,10 @@ class _MovieRecommendationScreenState extends State<MovieRecommendationScreen> {
   void _applyFilters() {
     final movieViewModel = Provider.of<MovieViewModel>(context, listen: false);
     
+    // Görünüm modelinde filtreleri ayarla
+    movieViewModel.selectedType = _selectedType;
+    movieViewModel.selectedGenre = _selectedGenre;
+    
     // Eğer filtrelenmiş bir sonuç yoksa yeni içerik iste
     if (_filterMovies(movieViewModel.movies).isEmpty) {
       String filterQuery = '';
@@ -467,7 +471,7 @@ class _MovieRecommendationScreenState extends State<MovieRecommendationScreen> {
       }
       
       if (filterQuery.isNotEmpty) {
-        movieViewModel.searchMovies(filterQuery);
+        movieViewModel.searchMovies(filterQuery, type: _selectedType, genre: _selectedGenre);
       } else {
         movieViewModel.reset();
         movieViewModel.initialize();
@@ -617,27 +621,63 @@ class _MovieRecommendationScreenState extends State<MovieRecommendationScreen> {
     return PageView.builder(
       controller: _pageController,
       scrollDirection: Axis.vertical,
-      itemCount: movies.length,
+      itemCount: movies.length + 1, // Son elemandan sonra bir yükleme göstergesi
       onPageChanged: (index) {
-        // Son sayfaya geldiğinde daha fazla yükle
-        if (index == movies.length - 1) {
-          viewModel.loadMoreMovies();
+        // Son sayfaya yaklaşıldığında daha fazla yükle (son 3 elemana gelince)
+        if (index >= movies.length - 3 && index < movies.length) {
+          viewModel.loadMore();
         }
         
-        // Mevcut filmi ayarla
-        final movie = movies[index];
-        viewModel.setCurrentMovie(movie);
-        
-        // Detay ekranını sıfırla
-        setState(() {
-          _showDetails = false;
-          _movieDetails = {};
-        });
+        // Mevcut filmi ayarla (son eleman yüklenme göstergesi değilse)
+        if (index < movies.length) {
+          final movie = movies[index];
+          viewModel.setCurrentMovie(movie);
+          
+          // Detay ekranını sıfırla
+          setState(() {
+            _showDetails = false;
+            _movieDetails = {};
+          });
+        }
       },
       itemBuilder: (context, index) {
+        // Son eleman için yükleme göstergesi göster
+        if (index == movies.length) {
+          return _buildLoadingMoreIndicator(viewModel);
+        }
+        
         final movie = movies[index];
         return _buildMoviePageItem(movie, viewModel);
       },
+    );
+  }
+  
+  Widget _buildLoadingMoreIndicator(MovieViewModel viewModel) {
+    // Son eleman için yükleme göstergesi göster
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(color: Colors.blue),
+          const SizedBox(height: 16),
+          Text(
+            'Daha fazla içerik yükleniyor...',
+            style: TextStyle(color: Colors.white.withOpacity(0.7)),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () => viewModel.loadMore(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade800,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            child: const Text('Yenile'),
+          ),
+        ],
+      ),
     );
   }
   
@@ -861,6 +901,37 @@ class _MovieRecommendationScreenState extends State<MovieRecommendationScreen> {
             ],
           ),
         ),
+        
+        // İleri butonu
+        Positioned(
+          right: 30,
+          top: 575,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(50),
+              onTap: () => _showMovieDetails(movie),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'İleri',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1076,59 +1147,22 @@ class _MovieRecommendationScreenState extends State<MovieRecommendationScreen> {
                   const SizedBox(height: 24),
                 ],
                 
-                // Wikipedia içeriği
-                if (_movieDetails.containsKey('content') && _movieDetails['content'] != null) ...[
-                  Text(
-                    'Özet',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
-                      fontSize: 16,
-                    ),
+                // Özet göster
+                Text(
+                  'Özet',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 16,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    movie.overview,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  movie.overview,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
                   ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  Text(
-                    'Wikipedia',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _movieDetails['content'],
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
-                  ),
-                ] else ...[
-                  // Wikipedia içeriği yoksa sadece özeti göster
-                  Text(
-                    'Özet',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    movie.overview,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
+                ),
               ],
               
               const SizedBox(height: 24),
@@ -1163,7 +1197,7 @@ class _MovieRecommendationScreenState extends State<MovieRecommendationScreen> {
         // Geri butonu (Yeniden tasarlanmış)
         Positioned(
           left: 16,
-          top: 16,
+          top: 5,
           child: Material(
             color: Colors.transparent,
             child: InkWell(
@@ -1178,24 +1212,23 @@ class _MovieRecommendationScreenState extends State<MovieRecommendationScreen> {
                   curve: Curves.easeInOut,
                 );
               },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade900.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(50),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.arrow_back_ios,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Geri',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 12,
                     ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: Colors.white,
-                  size: 24,
-                ),
+                  ),
+                ],
               ),
             ),
           ),

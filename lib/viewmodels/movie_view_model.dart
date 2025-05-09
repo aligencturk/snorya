@@ -29,6 +29,8 @@ class MovieViewModel extends ChangeNotifier {
   Movie? _currentMovie;
   bool _hasMoreMovies = true;
   int _page = 1;
+  String? _selectedType; // 'movie' veya 'tv' veya null (her ikisi)
+  String? _selectedGenre; // Seçilen tür veya null (tüm türler)
 
   MovieViewModel({
     required GeminiService geminiService,
@@ -47,6 +49,19 @@ class MovieViewModel extends ChangeNotifier {
   String get errorMessage => _errorMessage;
   Movie? get currentMovie => _currentMovie;
   bool get hasMoreMovies => _hasMoreMovies;
+  String? get selectedType => _selectedType;
+  String? get selectedGenre => _selectedGenre;
+
+  // Setters
+  set selectedType(String? type) {
+    _selectedType = type;
+    notifyListeners();
+  }
+
+  set selectedGenre(String? genre) {
+    _selectedGenre = genre;
+    notifyListeners();
+  }
 
   // ViewModel'i başlat
   Future<void> initialize() async {
@@ -127,6 +142,7 @@ class MovieViewModel extends ChangeNotifier {
       final List<dynamic> moviesJson = json.decode(jsonText);
       
       final List<Movie> moviesList = [];
+      final List<Future<Movie>> posterFutures = [];
       
       for (var movieJson in moviesJson) {
         final movie = Movie.fromJson(movieJson);
@@ -135,16 +151,58 @@ class MovieViewModel extends ChangeNotifier {
         final isFavorite = _favoriteMovies.any((fav) => fav.id == movie.id);
         final movieWithFavorite = movie.copyWith(isFavorite: isFavorite);
         
-        // Poster URL'ini Wikipedia'dan al
-        final posterUrl = await _getPosterUrl(movie.title);
-        final movieWithPoster = movieWithFavorite.copyWith(posterUrl: posterUrl);
-        
-        moviesList.add(movieWithPoster);
+        // Poster yükleme işlemini başlat ama beklemeden devam et
+        posterFutures.add(_getPosterForMovie(movieWithFavorite));
       }
+      
+      // Tüm poster işlemlerinin tamamlanmasını bekle
+      final moviesWithPosters = await Future.wait(posterFutures);
+      moviesList.addAll(moviesWithPosters);
       
       return moviesList;
     } catch (e) {
       throw Exception('Film/dizi verisi parse edilemedi: ${e.toString()}');
+    }
+  }
+
+  // Film/dizi için poster alarak yeni bir movie nesnesi döndür
+  Future<Movie> _getPosterForMovie(Movie movie) async {
+    try {
+      // 1. Başlık + tip ile resim ara (örn: "Inception film")
+      String mediaType = movie.type == 'movie' ? 'film' : 'dizi';
+      String searchQuery = '${movie.title} $mediaType';
+      
+      String posterUrl = await _wikiService.searchImage(searchQuery, isEnglish: false);
+      
+      // 2. Sadece başlık ile ara
+      if (posterUrl.isEmpty) {
+        posterUrl = await _wikiService.searchImage(movie.title, isEnglish: false);
+      }
+      
+      // 3. İngilizce olarak ara
+      if (posterUrl.isEmpty) {
+        posterUrl = await _wikiService.searchImage(movie.title, isEnglish: true);
+      }
+      
+      // 4. Türler ile birlikte ara
+      if (posterUrl.isEmpty && movie.genres.isNotEmpty) {
+        searchQuery = '${movie.title} ${movie.genres.first}';
+        posterUrl = await _wikiService.searchImage(searchQuery, isEnglish: false);
+      }
+      
+      // 5. Fallback görsel kullan
+      if (posterUrl.isEmpty) {
+        if (movie.type == 'movie') {
+          posterUrl = AppConstants.fallbackMovieImageUrl;
+        } else {
+          posterUrl = AppConstants.fallbackTvImageUrl;
+        }
+      }
+      
+      return movie.copyWith(posterUrl: posterUrl);
+    } catch (e) {
+      print('Film posteri alınırken hata: $e');
+      return movie.copyWith(posterUrl: AppConstants.fallbackImageUrl);
     }
   }
 
@@ -170,7 +228,7 @@ class MovieViewModel extends ChangeNotifier {
 
   // Daha fazla dizi/film yükle
   Future<void> loadMoreMovies() async {
-    if (!_hasMoreMovies || _state == MovieLoadingState.loading) {
+    if (_state == MovieLoadingState.loading) {
       return;
     }
     
@@ -181,9 +239,7 @@ class MovieViewModel extends ChangeNotifier {
       _page++;
       final List<Movie> newMovies = await _loadMoviesForCategory(_selectedCategory, _page);
       
-      if (newMovies.isEmpty) {
-        _hasMoreMovies = false;
-      } else {
+      if (newMovies.isNotEmpty) {
         _movies.addAll(newMovies);
       }
       
@@ -199,6 +255,7 @@ class MovieViewModel extends ChangeNotifier {
   // Dizi/film ara veya filtrele
   Future<void> searchMovies(String query, {String? type, String? genre}) async {
     _searchQuery = query;
+    _page = 1; // Sayfa numarasını sıfırla
     
     if (query.isEmpty) {
       _filteredMovies.clear();
@@ -254,6 +311,7 @@ class MovieViewModel extends ChangeNotifier {
         final List<dynamic> moviesJson = json.decode(jsonText);
         
         _filteredMovies.clear();
+        final List<Future<Movie>> posterFutures = [];
         
         for (var movieJson in moviesJson) {
           final movie = Movie.fromJson(movieJson);
@@ -262,12 +320,13 @@ class MovieViewModel extends ChangeNotifier {
           final isFavorite = _favoriteMovies.any((fav) => fav.id == movie.id);
           final movieWithFavorite = movie.copyWith(isFavorite: isFavorite);
           
-          // Poster URL'ini Wikipedia'dan al
-          final posterUrl = await _getPosterUrl(movie.title);
-          final movieWithPoster = movieWithFavorite.copyWith(posterUrl: posterUrl);
-          
-          _filteredMovies.add(movieWithPoster);
+          // Poster yükleme işlemini başlat
+          posterFutures.add(_getPosterForMovie(movieWithFavorite));
         }
+        
+        // Tüm poster işlemlerinin tamamlanmasını bekle
+        final moviesWithPosters = await Future.wait(posterFutures);
+        _filteredMovies.addAll(moviesWithPosters);
         
         _state = MovieLoadingState.loaded;
       } catch (e) {
@@ -276,6 +335,94 @@ class MovieViewModel extends ChangeNotifier {
     } catch (e) {
       _state = MovieLoadingState.error;
       _errorMessage = 'Dizi/film aranırken bir hata oluştu: ${e.toString()}';
+    }
+    
+    notifyListeners();
+  }
+
+  // Aranan dizi/filmler için daha fazla içerik yükle
+  Future<void> loadMoreSearchResults() async {
+    if (_searchQuery.isEmpty || _state == MovieLoadingState.loading) {
+      return;
+    }
+    
+    _state = MovieLoadingState.loading;
+    notifyListeners();
+    
+    try {
+      _page++;
+      
+      // Arama sorgusu için benzer içerikler üret
+      String prompt = 'Lütfen "$_searchQuery" benzer olan, ancak daha önce döndürülmemiş 10 adet farklı ';
+      
+      // Tip bilgisini belirle
+      if (_selectedType == 'movie') {
+        prompt += 'film ';
+      } else if (_selectedType == 'tv') {
+        prompt += 'dizi ';
+      } else {
+        prompt += 'dizi ve film ';
+      }
+      
+      // Tür bilgisini belirle
+      if (_selectedGenre != null) {
+        prompt += 'türü $_selectedGenre olan ';
+      }
+      
+      prompt += 'öner. Her öneri için şu bilgileri ver: id (benzersiz sayı), başlık, kısa özet, '
+          'türler (virgülle ayır), yönetmen, yayın tarihi ve 10 üzerinden puanı. '
+          'JSON formatında dön: [{"id": "1", "title": "Film Adı", "overview": "Özet", '
+          '"type": "movie/tv", "genres": ["Tür1", "Tür2"], "director": "Yönetmen", '
+          '"releaseDate": "Tarih", "rating": 8.5}]';
+      
+      final response = await _geminiService.generateContent(prompt);
+      
+      if (response.isEmpty) {
+        throw Exception('Film/dizi önerileri alınamadı');
+      }
+      
+      try {
+        // JSON formatını ayıklama
+        String jsonText = response;
+        
+        // JSON parantezleri bulmaya çalış
+        final int startIndex = jsonText.indexOf('[');
+        final int endIndex = jsonText.lastIndexOf(']') + 1;
+        
+        if (startIndex >= 0 && endIndex > startIndex) {
+          jsonText = jsonText.substring(startIndex, endIndex);
+        }
+        
+        final List<dynamic> moviesJson = json.decode(jsonText);
+        
+        final List<Future<Movie>> posterFutures = [];
+        
+        for (var movieJson in moviesJson) {
+          final movie = Movie.fromJson(movieJson);
+          
+          // Favori durumunu kontrol et
+          final isFavorite = _favoriteMovies.any((fav) => fav.id == movie.id);
+          final movieWithFavorite = movie.copyWith(isFavorite: isFavorite);
+          
+          // Poster yükleme işlemini başlat
+          posterFutures.add(_getPosterForMovie(movieWithFavorite));
+        }
+        
+        // Tüm poster işlemlerinin tamamlanmasını bekle
+        final moviesWithPosters = await Future.wait(posterFutures);
+        
+        // Sonuçları listeye ekle
+        if (moviesWithPosters.isNotEmpty) {
+          _filteredMovies.addAll(moviesWithPosters);
+        }
+        
+        _state = MovieLoadingState.loaded;
+      } catch (e) {
+        throw Exception('Film/dizi verisi parse edilemedi: ${e.toString()}');
+      }
+    } catch (e) {
+      _state = MovieLoadingState.error;
+      _errorMessage = 'Daha fazla dizi/film aranırken bir hata oluştu: ${e.toString()}';
     }
     
     notifyListeners();
@@ -430,6 +577,21 @@ class MovieViewModel extends ChangeNotifier {
       _state = MovieLoadingState.error;
       _errorMessage = 'Filtreli dizi/filmler yüklenirken bir hata oluştu: ${e.toString()}';
       notifyListeners();
+    }
+  }
+
+  // Daha fazla film/dizi yükle (genel metot)
+  Future<void> loadMore() async {
+    if (_state == MovieLoadingState.loading) {
+      return;
+    }
+    
+    // Arama yapılıyorsa, arama sonuçlarını yükle
+    if (_searchQuery.isNotEmpty) {
+      await loadMoreSearchResults();
+    } else {
+      // Normal içerik yükleme
+      await loadMoreMovies();
     }
   }
 } 

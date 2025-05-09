@@ -948,7 +948,81 @@ class WikiService {
   /// Başlığa göre resim URL'si arar
   Future<String> searchImage(String title, {bool isEnglish = false}) async {
     try {
-      // Wikipedia API'sini kullanarak resim arama
+      // Önce başlığın sonundaki parantezleri (varsa) temizle
+      final cleanTitle = title.replaceAll(RegExp(r'\([^)]*\)'), '').trim();
+      
+      // 1. Standart Wikipedia API'sini kullanarak resim ara
+      String imageUrl = await _searchImageInWikipedia(cleanTitle, isEnglish: isEnglish);
+      if (imageUrl.isNotEmpty) {
+        return imageUrl;
+      }
+      
+      // 2. Başlığı genişleterek alternatif arama
+      final titleWords = cleanTitle.split(' ');
+      if (titleWords.length > 1) {
+        // İlk iki kelimeyi veya en fazla üç kelimeyi al
+        final simplifiedTitle = titleWords.length > 3 
+            ? titleWords.sublist(0, 3).join(' ') 
+            : titleWords.join(' ');
+        
+        imageUrl = await _searchImageInWikipedia(simplifiedTitle, isEnglish: isEnglish);
+        if (imageUrl.isNotEmpty) {
+          return imageUrl;
+        }
+      }
+      
+      // 3. Film başlığına "film" veya "dizi" ekleyerek ara
+      String mediaType = '';
+      if (title.toLowerCase().contains('dizi') || 
+          title.toLowerCase().contains('series') ||
+          title.toLowerCase().contains('tv')) {
+        mediaType = isEnglish ? 'TV series' : 'dizi';
+      } else {
+        mediaType = isEnglish ? 'film' : 'film';
+      }
+      
+      imageUrl = await _searchImageInWikipedia('$cleanTitle $mediaType', isEnglish: isEnglish);
+      if (imageUrl.isNotEmpty) {
+        return imageUrl;
+      }
+      
+      // 4. Commons'da ara (daha geniş medya veritabanı)
+      imageUrl = await _searchImageInCommons(cleanTitle);
+      if (imageUrl.isNotEmpty) {
+        return imageUrl;
+      }
+      
+      // 5. Commons'da "film posteri" veya "dizi posteri" ekleyerek ara
+      final posterType = isEnglish ? 'poster' : 'afiş';
+      imageUrl = await _searchImageInCommons('$cleanTitle $posterType');
+      if (imageUrl.isNotEmpty) {
+        return imageUrl;
+      }
+      
+      // 6. Daha agresif arama stratejisi: ilk kelimeyle posterler arasında ara
+      if (titleWords.isNotEmpty) {
+        final firstWord = titleWords[0];
+        imageUrl = await _searchImageInCommons('$firstWord $posterType film');
+        if (imageUrl.isNotEmpty) {
+          return imageUrl;
+        }
+      }
+      
+      // 7. İngilizce arama henüz denenmemişse, İngilizce olarak da dene
+      if (!isEnglish) {
+        return await searchImage(title, isEnglish: true);
+      }
+      
+      return '';
+    } catch (e) {
+      print('Resim arama hatası: $e');
+      return '';
+    }
+  }
+  
+  /// Wikipedia API'sini kullanarak resim ara
+  Future<String> _searchImageInWikipedia(String title, {bool isEnglish = false}) async {
+    try {
       final apiUrl = isEnglish 
           ? AppConstants.wikipediaEnApiBaseUrl 
           : AppConstants.wikipediaApiBaseUrl;
@@ -986,10 +1060,9 @@ class WikiService {
         }
       }
       
-      // Resim bulunamadıysa, Wikimedia Commons API'sini dene
-      return await _searchImageInCommons(title);
+      return '';
     } catch (e) {
-      print('Resim arama hatası: $e');
+      print('Wikipedia resim arama hatası: $e');
       return '';
     }
   }
@@ -997,10 +1070,15 @@ class WikiService {
   /// Wikimedia Commons'dan resim ara
   Future<String> _searchImageInCommons(String title) async {
     try {
+      // gsrsearch parametresi için film/dizi anahtar kelimeleri ekle
+      final searchTerms = '${Uri.encodeComponent(title)} poster|film|movie|series|dizi|afiş';
+      
       final url = Uri.parse(
         '${AppConstants.commonsApiBaseUrl}?action=query'
-        '&generator=search&gsrsearch=${Uri.encodeComponent(title)}'
-        '&gsrlimit=5&prop=imageinfo&iiprop=url&format=json'
+        '&generator=search&gsrsearch=$searchTerms'
+        '&gsrnamespace=6' // Sadece File namespace'de ara (dosya/görsel)
+        '&gsrlimit=10' // Daha fazla sonuç al
+        '&prop=imageinfo&iiprop=url|mediatype|size&format=json'
       );
       
       final response = await http.get(url);
@@ -1012,8 +1090,9 @@ class WikiService {
             data['query'].containsKey('pages')) {
           
           final pages = data['query']['pages'];
+          final List<Map<String, dynamic>> images = [];
           
-          // Tüm sayfalarda imageinfo kontrol et
+          // Tüm görselleri topla ve sırala
           for (var pageId in pages.keys) {
             final page = pages[pageId];
             
@@ -1023,9 +1102,33 @@ class WikiService {
               
               final imageInfo = page['imageinfo'][0];
               if (imageInfo.containsKey('url')) {
-                return imageInfo['url'];
+                // Görsel tipini kontrol et (jpg, png tercih edelim)
+                final url = imageInfo['url'] as String;
+                final isImage = url.toLowerCase().endsWith('.jpg') || 
+                               url.toLowerCase().endsWith('.jpeg') || 
+                               url.toLowerCase().endsWith('.png');
+                               
+                if (isImage) {
+                  // Resmin boyutunu da al (eğer varsa)
+                  int width = 0;
+                  if (imageInfo.containsKey('width')) {
+                    width = imageInfo['width'] as int;
+                  }
+                  
+                  images.add({
+                    'url': url,
+                    'width': width,
+                    'title': page['title'] ?? '',
+                  });
+                }
               }
             }
+          }
+          
+          // Görselleri boyutlarına göre sırala, en büyük görseli tercih et
+          if (images.isNotEmpty) {
+            images.sort((a, b) => (b['width'] as int).compareTo(a['width'] as int));
+            return images.first['url'] as String;
           }
         }
       }
