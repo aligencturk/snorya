@@ -26,24 +26,7 @@ class _GameRecommendationScreenState extends State<GameRecommendationScreen> wit
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   bool _showSearchBar = false;
-  String _currentFilter = 'Tümü'; // Filtre değişkeni
   
-  // Oyun türleri
-  final List<String> _gameGenres = [
-    'Tümü',
-    'Aksiyon',
-    'Macera',
-    'Strateji',
-    'RPG',
-    'Simulasyon',
-    'Yarış',
-    'Spor',
-    'Bulmaca',
-    'Platform',
-    'Shooter',
-    'Open World',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -67,7 +50,6 @@ class _GameRecommendationScreenState extends State<GameRecommendationScreen> wit
     // ViewModel'i başlat ve ilk oyunu yükle
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final viewModel = Provider.of<GameViewModel>(context, listen: false);
-      _currentFilter = viewModel.activeGenreFilter; // Başlangıçta aktif filtreyi al
       viewModel.initialize();
     });
   }
@@ -108,69 +90,24 @@ class _GameRecommendationScreenState extends State<GameRecommendationScreen> wit
               scale: _animation.value,
               child: _showSearchBar 
                 ? _buildSearchBar()
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Oyun Önerileri',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 22,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black45,
-                              blurRadius: 10.0,
-                            ),
-                          ],
+                : const Text(
+                    'Oyun Önerileri',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black45,
+                          blurRadius: 10.0,
                         ),
-                      ),
-                      if (_currentFilter != 'Tümü')
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.filter_list,
-                              color: Colors.white70,
-                              size: 12,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _currentFilter,
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
             );
           },
         ),
         actions: [
-          // Filtreleme butonu
-          Container(
-            margin: const EdgeInsets.only(right: 8.0),
-            decoration: BoxDecoration(
-              color: _currentFilter != 'Tümü' 
-                ? Colors.blue.withOpacity(0.6) 
-                : Colors.black.withOpacity(0.3),
-              shape: BoxShape.circle,
-              border: _currentFilter != 'Tümü'
-                ? Border.all(color: Colors.blue.shade300, width: 1)
-                : null,
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.filter_list, color: Colors.white),
-              onPressed: () {
-                _showFilterDialog(context);
-              },
-              tooltip: 'Tür Filtrele',
-            ),
-          ),
           // Arama butonu
           Container(
             margin: const EdgeInsets.only(right: 8.0),
@@ -450,13 +387,12 @@ class _GameRecommendationScreenState extends State<GameRecommendationScreen> wit
         ),
         onSubmitted: (value) {
           if (value.isNotEmpty) {
-            // Arama sorgusunu viewModel'e gönder
+            // Arama sorgusunu viewModel'e gönder ve filtre parametresini kaldır
             final gameViewModel = Provider.of<GameViewModel>(context, listen: false);
-            gameViewModel.generateGameRecommendation(value, genreFilter: 'Tümü');
+            gameViewModel.generateGameRecommendation(value);
             
-            // Arama yaptığında filtre değerini de güncelleyelim
+            // Arama yaptığında sadece arama çubuğunu gizle
             setState(() {
-              _currentFilter = 'Tümü';
               _showSearchBar = false;
             });
           }
@@ -682,129 +618,6 @@ class _GameRecommendationScreenState extends State<GameRecommendationScreen> wit
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  /// Tür filtresi seçme dialogu
-  void _showFilterDialog(BuildContext context) {
-    final viewModel = Provider.of<GameViewModel>(context, listen: false);
-    
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        decoration: BoxDecoration(
-          color: Colors.indigo.shade900,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Başlık
-            Container(
-              width: 40,
-              height: 5,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(5),
-              ),
-            ),
-            
-            const Text(
-              'Oyun Türü Filtrele',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            
-            const SizedBox(height: 5),
-            const Text(
-              'Görmek istediğin oyun türünü seç',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-              ),
-            ),
-            
-            const SizedBox(height: 20),
-            
-            // Tür listesi
-            Flexible(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: _gameGenres.map((genre) {
-                      final isSelected = _currentFilter == genre;
-                      
-                      return InkWell(
-                        onTap: () {
-                          setState(() {
-                            _currentFilter = genre;
-                          });
-                          
-                          // Filtre uygulanınca dialog'u kapat
-                          Navigator.pop(context);
-                          
-                          // Filtreye göre oyun getir
-                          if (genre == 'Tümü') {
-                            viewModel.generateGameRecommendation('popüler oyun önerisi', genreFilter: genre);
-                          } else {
-                            viewModel.generateGameRecommendation('$genre oyun önerisi', genreFilter: genre);
-                          }
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isSelected ? Colors.blue.shade600 : Colors.black38,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: isSelected ? Colors.blue.shade300 : Colors.transparent,
-                              width: 1,
-                            ),
-                          ),
-                          child: Text(
-                            genre,
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.white70,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-            ),
-            
-            // İptal butonu
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              child: TextButton(
-                onPressed: () => Navigator.pop(context),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white70,
-                ),
-                child: const Text('İptal'),
               ),
             ),
           ],
