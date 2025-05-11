@@ -1,12 +1,26 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// 🔐 Keystore'u oku (kesin yolu kullan)
+val keystoreProperties = Properties()
+val keystorePath = file("../key.properties")
+if (keystorePath.exists()) {
+    println("✅ key.properties bulundu.")
+    keystoreProperties.load(FileInputStream(keystorePath))
+    println("🧪 storeFile: " + keystoreProperties["storeFile"])
+} else {
+    throw GradleException("❌ key.properties bulunamadı: ${keystorePath.absolutePath}")
+}
+
+
 android {
-    namespace = "com.example.snorya"
+    namespace = "com.rivorya.snorya"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -20,21 +34,33 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.snorya"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        applicationId = "com.rivorya.snorya"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            val storeFilePath = keystoreProperties["storeFile"]?.toString()
+                ?: throw GradleException("storeFile eksik ya da null!")
+            storeFile = file(storeFilePath)
+
+            storePassword = keystoreProperties["storePassword"]?.toString()
+                ?: throw GradleException("storePassword eksik!")
+            keyAlias = keystoreProperties["keyAlias"]?.toString()
+                ?: throw GradleException("keyAlias eksik!")
+            keyPassword = keystoreProperties["keyPassword"]?.toString()
+                ?: throw GradleException("keyPassword eksik!")
+        }
+    }
+
     buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }

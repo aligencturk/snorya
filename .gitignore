@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# 🔐 Keystore dosyaları
+android/key.properties
+android/my-key.jks
