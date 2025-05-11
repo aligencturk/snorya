@@ -143,22 +143,16 @@ class MovieViewModel extends ChangeNotifier {
       final List<dynamic> moviesJson = json.decode(jsonText);
       
       final List<Movie> moviesList = [];
-      final List<Future<Movie>> posterFutures = [];
       
       for (var movieJson in moviesJson) {
         final movie = Movie.fromJson(movieJson);
         
         // Favori durumunu kontrol et
         final isFavorite = _favoriteMovies.any((fav) => fav.id == movie.id);
-        final movieWithFavorite = movie.copyWith(isFavorite: isFavorite);
+        final movieWithFavorite = movie.copyWith(isFavorite: isFavorite, posterUrl: '');
         
-        // Poster yükleme işlemini başlat ama beklemeden devam et
-        posterFutures.add(_getPosterForMovie(movieWithFavorite));
+        moviesList.add(movieWithFavorite);
       }
-      
-      // Tüm poster işlemlerinin tamamlanmasını bekle
-      final moviesWithPosters = await Future.wait(posterFutures);
-      moviesList.addAll(moviesWithPosters);
       
       return moviesList;
     } catch (e) {
@@ -348,41 +342,30 @@ class MovieViewModel extends ChangeNotifier {
         throw Exception('Film/dizi önerileri alınamadı');
       }
       
-      try {
-        // JSON formatını ayıklama
-        String jsonText = response;
-        
-        // JSON parantezleri bulmaya çalış
-        final int startIndex = jsonText.indexOf('[');
-        final int endIndex = jsonText.lastIndexOf(']') + 1;
-        
-        if (startIndex >= 0 && endIndex > startIndex) {
-          jsonText = jsonText.substring(startIndex, endIndex);
-        }
-        
-        final List<dynamic> moviesJson = json.decode(jsonText);
-        
-        _filteredMovies.clear();
-        final List<Future<Movie>> posterFutures = [];
-        
-        for (var movieJson in moviesJson) {
-          final movie = Movie.fromJson(movieJson);
-          
-          // Favori durumunu kontrol et
-          final isFavorite = _favoriteMovies.any((fav) => fav.id == movie.id);
-          final movieWithFavorite = movie.copyWith(isFavorite: isFavorite);
-          
-          // Poster yükleme işlemini başlat
-          posterFutures.add(_getPosterForMovie(movieWithFavorite));
-        }
-        
-        // Tüm poster işlemlerinin tamamlanmasını bekle
-        final moviesWithPosters = await Future.wait(posterFutures);
-        _filteredMovies.addAll(moviesWithPosters);
-        
-        _state = MovieLoadingState.loaded;
-      } catch (e) {
-        throw Exception('Film/dizi verisi parse edilemedi: ${e.toString()}');
+      String jsonText = response;
+      final int startIndex = jsonText.indexOf('[');
+      final int endIndex = jsonText.lastIndexOf(']') + 1;
+      if (startIndex >= 0 && endIndex > startIndex) {
+        jsonText = jsonText.substring(startIndex, endIndex);
+      }
+      
+      final List<dynamic> moviesJson = json.decode(jsonText);
+      
+      _filteredMovies.clear();
+      final List<Movie> newMovies = [];
+
+      for (var movieJson in moviesJson) {
+        final movie = Movie.fromJson(movieJson as Map<String, dynamic>);
+        final isFavorite = _favoriteMovies.any((fav) => fav.id == movie.id);
+        final movieWithFavorite = movie.copyWith(isFavorite: isFavorite, posterUrl: '');
+        newMovies.add(movieWithFavorite);
+      }
+      _filteredMovies.addAll(newMovies);
+      
+      _state = MovieLoadingState.loaded;
+      if (_filteredMovies.isEmpty) {
+        _errorMessage = 'Sonuç bulunamadı. Farklı bir arama deneyin.';
+        _state = MovieLoadingState.error;
       }
     } catch (e) {
       _state = MovieLoadingState.error;
@@ -400,6 +383,9 @@ class MovieViewModel extends ChangeNotifier {
     
     _state = MovieLoadingState.loading;
     notifyListeners();
+    
+    bool triedAlternativeQuery = false;
+    String altPrompt = '';
     
     try {
       _page++;
@@ -433,119 +419,100 @@ class MovieViewModel extends ChangeNotifier {
         throw Exception('Film/dizi önerileri alınamadı');
       }
       
-      try {
-        // JSON formatını ayıklama
-        String jsonText = response;
-        
-        // JSON parantezleri bulmaya çalış
-        final int startIndex = jsonText.indexOf('[');
-        final int endIndex = jsonText.lastIndexOf(']') + 1;
-        
-        if (startIndex >= 0 && endIndex > startIndex) {
-          jsonText = jsonText.substring(startIndex, endIndex);
-        }
-        
-        final List<dynamic> moviesJson = json.decode(jsonText);
-        
-        final List<Future<Movie>> posterFutures = [];
-        
-        // Mevcut film/dizi başlıklarını al (duplikasyon kontrolü için)
-        final Set<String> existingTitles = _filteredMovies.map((movie) => movie.title.toLowerCase()).toSet();
-        
-        // Duplikasyonsuz film/dizileri seç
-        List<dynamic> uniqueMoviesJson = moviesJson.where((movieJson) {
-          final String title = movieJson['title']?.toString().toLowerCase() ?? '';
-          return title.isNotEmpty && !existingTitles.contains(title);
-        }).toList();
-        
-        // Eğer duplikasyonsuz içerik kalmadıysa, sorguyu değiştir ve tekrar dene
-        if (uniqueMoviesJson.isEmpty) {
-          // Alternatif arama sorguları oluştur
-          final List<String> alternativeQueries = [
-            '$_searchQuery benzeri yeni yapımlar',
-            '$_searchQuery alternatifi',
-            '$_searchQuery gibi az bilinen yapımlar',
-            '$_searchQuery tarzında farklı yapımlar',
-            'popüler $_searchQuery benzeri'
-          ];
-          
-          // Rastgele bir sorgu seç
-          final random = Random();
-          final String altQuery = alternativeQueries[random.nextInt(alternativeQueries.length)];
-          
-          // Yeni bir sorgu oluştur
-          String altPrompt = 'Lütfen "$altQuery" benzer olan 10 adet ';
-          
-          if (_selectedType == 'movie') {
-            altPrompt += 'film ';
-          } else if (_selectedType == 'tv') {
-            altPrompt += 'dizi ';
-          } else {
-            altPrompt += 'dizi ve film ';
-          }
-          
-          if (_selectedGenre != null) {
-            altPrompt += 'türü $_selectedGenre olan ';
-          }
-          
-          altPrompt += 'öner. JSON formatında dön: [{"id": "1", "title": "Film Adı", "overview": "Özet", '
-              '"type": "movie/tv", "genres": ["Tür1", "Tür2"], "director": "Yönetmen", '
-              '"releaseDate": "Tarih", "rating": 8.5}]';
-          
-          final altResponse = await _geminiService.generateContent(altPrompt);
-          
-          if (altResponse.isNotEmpty) {
-            // JSON formatını ayıkla
-            String altJsonText = altResponse;
-            
-            final int altStartIndex = altJsonText.indexOf('[');
-            final int altEndIndex = altJsonText.lastIndexOf(']') + 1;
-            
-            if (altStartIndex >= 0 && altEndIndex > altStartIndex) {
-              altJsonText = altJsonText.substring(altStartIndex, altEndIndex);
-            }
-            
-            final List<dynamic> altMoviesJson = json.decode(altJsonText);
-            
-            // Duplikasyonsuz film/dizileri seç
-            uniqueMoviesJson = altMoviesJson.where((movieJson) {
-              final String title = movieJson['title']?.toString().toLowerCase() ?? '';
-              return title.isNotEmpty && !existingTitles.contains(title);
-            }).toList();
-          }
-        }
-        
-        // Eğer alternatif sorguda da sonuç bulunamadıysa boş liste döndür
-        if (uniqueMoviesJson.isEmpty) {
-          _state = MovieLoadingState.loaded;
-          notifyListeners();
-          return;
-        }
-        
-        // Benzersiz film/dizileri işle
-        for (var movieJson in uniqueMoviesJson) {
-          final movie = Movie.fromJson(movieJson);
-          
-          // Favori durumunu kontrol et
-          final isFavorite = _favoriteMovies.any((fav) => fav.id == movie.id);
-          final movieWithFavorite = movie.copyWith(isFavorite: isFavorite);
-          
-          // Poster yükleme işlemini başlat
-          posterFutures.add(_getPosterForMovie(movieWithFavorite));
-        }
-        
-        // Tüm poster işlemlerinin tamamlanmasını bekle
-        final moviesWithPosters = await Future.wait(posterFutures);
-        
-        // Sonuçları listeye ekle
-        if (moviesWithPosters.isNotEmpty) {
-          _filteredMovies.addAll(moviesWithPosters);
-        }
-        
-        _state = MovieLoadingState.loaded;
-      } catch (e) {
-        throw Exception('Film/dizi verisi parse edilemedi: ${e.toString()}');
+      String jsonText = response;
+      final int startIndex = jsonText.indexOf('[');
+      final int endIndex = jsonText.lastIndexOf(']') + 1;
+      if (startIndex >= 0 && endIndex > startIndex) {
+        jsonText = jsonText.substring(startIndex, endIndex);
       }
+      
+      final List<dynamic> moviesJson = json.decode(jsonText);
+      
+      final List<Movie> newMovies = [];
+
+      // Mevcut ID'leri topla (duplikasyon önlemek için)
+      final existingMovieIds = _filteredMovies.map((m) => m.id).toSet();
+
+      for (var movieJson in moviesJson) {
+        final movie = Movie.fromJson(movieJson as Map<String, dynamic>);
+        // Sadece yeni ve benzersiz filmleri ekle
+        if (!existingMovieIds.contains(movie.id)) {
+          final isFavorite = _favoriteMovies.any((fav) => fav.id == movie.id);
+          // Movie nesnesini poster URL'si olmadan veya boş/null poster ile oluştur
+          final movieWithFavorite = movie.copyWith(isFavorite: isFavorite, posterUrl: ''); // Poster URL'si başlangıçta boş
+          newMovies.add(movieWithFavorite);
+          existingMovieIds.add(movie.id); // Yeni eklenen ID'yi sete ekle
+        }
+      }
+
+      // Tüm poster işlemlerinin tamamlanmasını bekle // Kaldırıldı
+      // final moviesWithPosters = await Future.wait(posterFutures); // Kaldırıldı
+      
+      // _filteredMovies.addAll(moviesWithPosters); // Kaldırıldı
+      _filteredMovies.addAll(newMovies); // Doğrudan ekle
+      _hasMoreMovies = newMovies.isNotEmpty;
+
+      // Eğer hiç yeni film eklenmediyse ve alternatif sorgu denenmediyse
+      if (newMovies.isEmpty && !triedAlternativeQuery) {
+        triedAlternativeQuery = true; // Alternatif sorguyu denediğimizi işaretle
+        
+        // Alternatif arama sorguları oluştur
+        final List<String> alternativeQueries = [
+          '$_searchQuery benzeri yeni yapımlar',
+          '$_searchQuery alternatifi',
+          '$_searchQuery gibi az bilinen yapımlar',
+          '$_searchQuery tarzında farklı yapımlar',
+          'popüler $_searchQuery benzeri'
+        ];
+        
+        // Rastgele bir sorgu seç
+        final random = Random();
+        final String altQuery = alternativeQueries[random.nextInt(alternativeQueries.length)];
+        
+        // Yeni bir sorgu oluştur
+        altPrompt = 'Lütfen "$altQuery" benzer olan 10 adet '; // altPrompt değeri atandı
+        
+        if (_selectedType == 'movie') {
+          altPrompt += 'film ';
+        } else if (_selectedType == 'tv') {
+          altPrompt += 'dizi ';
+        } else {
+          altPrompt += 'dizi ve film ';
+        }
+        
+        if (_selectedGenre != null) {
+          altPrompt += 'türü $_selectedGenre olan ';
+        }
+        
+        altPrompt += 'öner. JSON formatında dön: [{"id": "1", "title": "Film Adı", "overview": "Özet", '
+            '"type": "movie/tv", "genres": ["Tür1", "Tür2"], "director": "Yönetmen", '
+            '"releaseDate": "Tarih", "rating": 8.5}]';
+            
+        final altResponse = await _geminiService.generateContent(altPrompt);
+        if (altResponse.isNotEmpty) {
+          String altJsonText = altResponse;
+          final int altStartIndex = altJsonText.indexOf('[');
+          final int altEndIndex = altJsonText.lastIndexOf(']') + 1;
+          if (altStartIndex >= 0 && altEndIndex > altStartIndex) {
+            altJsonText = altJsonText.substring(altStartIndex, altEndIndex);
+          }
+          final List<dynamic> altMoviesJson = json.decode(altJsonText);
+          final List<Movie> alternativeNewMovies = [];
+          for (var movieJson in altMoviesJson) {
+            final movie = Movie.fromJson(movieJson as Map<String, dynamic>);
+            if (!existingMovieIds.contains(movie.id)) {
+              final isFavorite = _favoriteMovies.any((fav) => fav.id == movie.id);
+              final movieWithFavorite = movie.copyWith(isFavorite: isFavorite, posterUrl: '');
+              alternativeNewMovies.add(movieWithFavorite);
+              existingMovieIds.add(movie.id);
+            }
+          }
+          _filteredMovies.addAll(alternativeNewMovies);
+          _hasMoreMovies = alternativeNewMovies.isNotEmpty || newMovies.isNotEmpty;
+        }
+      }
+      
+      _state = MovieLoadingState.loaded;
     } catch (e) {
       _state = MovieLoadingState.error;
       _errorMessage = 'Daha fazla dizi/film aranırken bir hata oluştu: ${e.toString()}';
@@ -718,6 +685,39 @@ class MovieViewModel extends ChangeNotifier {
     } else {
       // Normal içerik yükleme
       await loadMoreMovies();
+    }
+  }
+
+  // Poster URL'sini getiren metod
+  Future<String> getPosterUrl(String title, String type) async {
+    try {
+      // _getPosterForMovie metodunu çağırmak yerine doğrudan _wikiService.searchImage kullanalım
+      // veya _getPosterForMovie'nin mantığını buraya taşıyalım.
+      // _getPosterForMovie Movie nesnesi bekliyordu, biz sadece title ve type ile arama yapacağız.
+      
+      String mediaTypeForSearch = type == 'movie' ? 'film' : 'dizi';
+      String searchQuery = '$title $mediaTypeForSearch';
+      
+      String posterUrl = await _wikiService.searchImage(searchQuery, isEnglish: false);
+      
+      if (posterUrl.isEmpty) {
+        posterUrl = await _wikiService.searchImage(title, isEnglish: false); // Sadece başlıkla ara (Türkçe)
+      }
+      
+      if (posterUrl.isEmpty) {
+        posterUrl = await _wikiService.searchImage(title, isEnglish: true); // Sadece başlıkla ara (İngilizce)
+      }
+      
+      // Gerekirse _getPosterForMovie'deki diğer arama stratejileri buraya eklenebilir.
+      // Örneğin, türler ile arama vs.
+
+      if (posterUrl.isEmpty) {
+        return AppConstants.fallbackImageUrl;
+      }
+      return posterUrl;
+    } catch (e) {
+      print('ViewModel - Film posteri alınırken hata: $e');
+      return AppConstants.fallbackImageUrl; // Hata durumunda varsayılan görsel
     }
   }
 } 

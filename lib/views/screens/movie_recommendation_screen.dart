@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../models/movie.dart';
 import '../../services/gemini_service.dart';
 import '../../services/storage_service.dart';
@@ -529,18 +531,9 @@ class _MovieRecommendationScreenState extends State<MovieRecommendationScreen> {
   }
   
   Widget _buildLoadingWidget() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const CircularProgressIndicator(color: Colors.blue),
-          const SizedBox(height: 20),
-          Text(
-            'Dizi/film önerileri yükleniyor...',
-            style: TextStyle(color: Colors.white.withOpacity(0.7)),
-          ),
-        ],
-      ),
+    return ListView.builder(
+      itemCount: 5, // Gösterilecek shimmer sayısı
+      itemBuilder: (context, index) => _buildMovieCardShimmer(),
     );
   }
   
@@ -785,10 +778,66 @@ class _MovieRecommendationScreenState extends State<MovieRecommendationScreen> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: movie.posterUrl.isNotEmpty
-                        ? Image.network(
-                            movie.posterUrl,
+                        ? CachedNetworkImage(
+                            imageUrl: movie.posterUrl,
+                            placeholder: (context, url) => Shimmer.fromColors(
+                              baseColor: Colors.grey[800]!,
+                              highlightColor: Colors.grey[700]!,
+                              child: Container(
+                                color: Colors.white,
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: Colors.grey.shade900,
+                              child: const Center(
+                                child: Icon(
+                                  Icons.movie,
+                                  color: Colors.grey,
+                                  size: 70,
+                                ),
+                              ),
+                            ),
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
+                          )
+                        : FutureBuilder<String>(
+                            future: viewModel.getPosterUrl(movie.title, movie.type ?? 'movie'),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return Shimmer.fromColors(
+                                  baseColor: Colors.grey[800]!,
+                                  highlightColor: Colors.grey[700]!,
+                                  child: Container(
+                                    color: Colors.white,
+                                  ),
+                                );
+                              }
+                              
+                              if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                                // Bu durumda viewModel'de movie.posterUrl'i snapshot.data ile güncelleyebiliriz
+                                // ama bu örnekte doğrudan CachedNetworkImage kullanıyoruz
+                                return CachedNetworkImage(
+                                  imageUrl: snapshot.data!,
+                                  placeholder: (context, url) => Shimmer.fromColors(
+                                    baseColor: Colors.grey[800]!,
+                                    highlightColor: Colors.grey[700]!,
+                                    child: Container(
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) => Container(
+                                    color: Colors.grey.shade900,
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.movie,
+                                        color: Colors.grey,
+                                        size: 70,
+                                      ),
+                                    ),
+                                  ),
+                                  fit: BoxFit.cover,
+                                );
+                              }
+                              
                               return Container(
                                 color: Colors.grey.shade900,
                                 child: const Center(
@@ -800,25 +849,6 @@ class _MovieRecommendationScreenState extends State<MovieRecommendationScreen> {
                                 ),
                               );
                             },
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Container(
-                                color: Colors.grey.shade900,
-                                child: const Center(
-                                  child: CircularProgressIndicator(color: Colors.blue),
-                                ),
-                              );
-                            },
-                          )
-                        : Container(
-                            color: Colors.grey.shade900,
-                            child: const Center(
-                              child: Icon(
-                                Icons.movie,
-                                color: Colors.grey,
-                                size: 70,
-                              ),
-                            ),
                           ),
                   ),
                 ),
@@ -958,10 +988,64 @@ class _MovieRecommendationScreenState extends State<MovieRecommendationScreen> {
                       width: 120,
                       height: 180,
                       child: movie.posterUrl.isNotEmpty
-                          ? Image.network(
-                              movie.posterUrl,
+                          ? CachedNetworkImage(
+                              imageUrl: movie.posterUrl,
+                              placeholder: (context, url) => Shimmer.fromColors(
+                                baseColor: Colors.grey[800]!,
+                                highlightColor: Colors.grey[700]!,
+                                child: Container(
+                                  color: Colors.white,
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: Colors.grey.shade900,
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.movie,
+                                    color: Colors.grey,
+                                    size: 40,
+                                  ),
+                                ),
+                              ),
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
+                            )
+                          : FutureBuilder<String>(
+                              future: viewModel.getPosterUrl(movie.title, movie.type ?? 'movie'),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                  return Shimmer.fromColors(
+                                    baseColor: Colors.grey[800]!,
+                                    highlightColor: Colors.grey[700]!,
+                                    child: Container(
+                                      color: Colors.white,
+                                    ),
+                                  );
+                                }
+                                
+                                if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                                  return CachedNetworkImage(
+                                    imageUrl: snapshot.data!,
+                                    placeholder: (context, url) => Shimmer.fromColors(
+                                      baseColor: Colors.grey[800]!,
+                                      highlightColor: Colors.grey[700]!,
+                                      child: Container(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    errorWidget: (context, url, error) => Container(
+                                      color: Colors.grey.shade900,
+                                      child: const Center(
+                                        child: Icon(
+                                          Icons.movie,
+                                          color: Colors.grey,
+                                          size: 40,
+                                        ),
+                                      ),
+                                    ),
+                                    fit: BoxFit.cover,
+                                  );
+                                }
+                                
                                 return Container(
                                   color: Colors.grey.shade900,
                                   child: const Center(
@@ -973,16 +1057,6 @@ class _MovieRecommendationScreenState extends State<MovieRecommendationScreen> {
                                   ),
                                 );
                               },
-                            )
-                          : Container(
-                              color: Colors.grey.shade900,
-                              child: const Center(
-                                child: Icon(
-                                  Icons.movie,
-                                  color: Colors.grey,
-                                  size: 40,
-                                ),
-                              ),
                             ),
                     ),
                   ),
@@ -1267,6 +1341,51 @@ class _MovieRecommendationScreenState extends State<MovieRecommendationScreen> {
           ],
         ),
       ],
+    );
+  }
+
+  // Film kartı için Shimmer efekti widget'ı
+  Widget _buildMovieCardShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[850]!,
+      highlightColor: Colors.grey[700]!,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+        padding: const EdgeInsets.all(12.0),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 100,
+              height: 150,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  Container(width: double.infinity, height: 20, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4))),
+                  const SizedBox(height: 12),
+                  Container(width: MediaQuery.of(context).size.width * 0.4, height: 16, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4))),
+                  const SizedBox(height: 8),
+                  Container(width: MediaQuery.of(context).size.width * 0.3, height: 14, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4))),
+                  const SizedBox(height: 12),
+                  Container(width: MediaQuery.of(context).size.width * 0.5, height: 14, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4))),
+                ],
+              ),
+            )
+          ],
+        ),
+      ),
     );
   }
 } 
