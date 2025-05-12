@@ -2,7 +2,7 @@ name: snorya
 description: "Wikipedia makalelerini Gemini AI ile özetleyip sunan bir uygulama."
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.1+4
 
 environment:
   sdk: ^3.7.2
