@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/wiki_service.dart';
 import 'services/gemini_service.dart';
 import 'services/storage_service.dart';
@@ -12,8 +13,11 @@ import 'viewmodels/movie_view_model.dart';
 import 'views/screens/home_screen.dart';
 import 'utils/constants.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // .env dosyasını yükle
+  await dotenv.load();
   
   // Tam ekran modu
   SystemChrome.setSystemUIOverlayStyle(

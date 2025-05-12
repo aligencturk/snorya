@@ -1,8 +1,10 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AppConstants {
   static const String appName = 'Snorya';
   
   // API Anahtar
-  static const String geminiApiKey = 'AIzaSyB53XGwpaQ25hPyLlBja4wu_ZcjP33IrHQ'; // Gerçek bir API anahtarı ile değiştirilmeli
+  static String get geminiApiKey => dotenv.env['GEMINI_API_KEY'] ?? '';
   
   // Kategori Sabitleri
   static const String categoryScience = 'Bilim';
@@ -27,14 +29,14 @@ class AppConstants {
   
   
   // Wikipedia API Sabitleri
-  static const String wikipediaApiBaseUrl = 'https://tr.wikipedia.org/w/api.php';
-  static const String wikipediaEnApiBaseUrl = 'https://en.wikipedia.org/w/api.php';
+  static String get wikipediaApiBaseUrl => dotenv.env['WIKIPEDIA_API_URL'] ?? 'https://tr.wikipedia.org/w/api.php';
+  static String get wikipediaEnApiBaseUrl => dotenv.env['WIKIPEDIA_EN_API_URL'] ?? 'https://en.wikipedia.org/w/api.php';
   
   // Wikimedia API Sabitleri
-  static const String wikiSpeciesApiBaseUrl = 'https://species.wikimedia.org/w/api.php';
-  static const String commonsApiBaseUrl = 'https://commons.wikimedia.org/w/api.php';
-  static const String wikiDataApiBaseUrl = 'https://www.wikidata.org/w/api.php';
-  static const String wikiSourceApiBaseUrl = 'https://wikisource.org/w/api.php';
+  static String get wikiSpeciesApiBaseUrl => dotenv.env['WIKISPECIES_API_URL'] ?? 'https://species.wikimedia.org/w/api.php';
+  static String get commonsApiBaseUrl => dotenv.env['COMMONS_API_URL'] ?? 'https://commons.wikimedia.org/w/api.php';
+  static String get wikiDataApiBaseUrl => dotenv.env['WIKIDATA_API_URL'] ?? 'https://www.wikidata.org/w/api.php';
+  static String get wikiSourceApiBaseUrl => dotenv.env['WIKISOURCE_API_URL'] ?? 'https://wikisource.org/w/api.php';
   
   // Gemini Prompt
   static const String geminiPrompt = 
