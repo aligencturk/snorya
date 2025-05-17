@@ -10,7 +10,7 @@ import 'viewmodels/article_view_model.dart';
 import 'viewmodels/favorites_view_model.dart';
 import 'viewmodels/game_view_model.dart';
 import 'viewmodels/movie_view_model.dart';
-import 'views/screens/home_screen.dart';
+import 'views/screens/splash_screen.dart';
 import 'utils/constants.dart';
 
 void main() async {
@@ -102,7 +102,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: const HomeScreen(),
+        home: const SplashScreen(),
         debugShowCheckedModeBanner: false,
       ),
     );
