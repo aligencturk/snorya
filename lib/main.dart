@@ -16,7 +16,6 @@ import 'utils/constants.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // .env dosyasını yükle
   await dotenv.load();
   
   // Tam ekran modu
