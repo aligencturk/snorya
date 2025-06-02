@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/article_view_model.dart';
-import '../../utils/constants.dart';
 
 class CustomTopicScreen extends StatefulWidget {
   const CustomTopicScreen({super.key});

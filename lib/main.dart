@@ -3,13 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/wiki_service.dart';
-import 'services/gemini_service.dart';
+import 'services/python_summary_service.dart';
+import 'services/pure_python_summary_service.dart';
 import 'services/storage_service.dart';
 import 'services/preload_service.dart';
 import 'viewmodels/article_view_model.dart';
 import 'viewmodels/favorites_view_model.dart';
-import 'viewmodels/game_view_model.dart';
-import 'viewmodels/movie_view_model.dart';
 import 'views/screens/splash_screen.dart';
 import 'utils/constants.dart';
 
@@ -26,6 +25,11 @@ void main() async {
     ),
   );
   
+  // Python servisi başlatma talimatlarını göster
+  print('🐍 SNORYA - PYTHON SERVİSİ MODU');
+  print('================================');
+  print(PurePythonSummaryService.getStartupInstructions());
+  
   runApp(const MyApp());
 }
 
@@ -40,8 +44,12 @@ class MyApp extends StatelessWidget {
         Provider<WikiService>(
           create: (_) => WikiService(),
         ),
-        Provider<GeminiService>(
-          create: (_) => GeminiService(),
+        Provider<PythonSummaryService>(
+          create: (_) => PythonSummaryService(),
+        ),
+        // SADECE PYTHON SERVİSİ - GEMİNİ FALLBACK YOK
+        Provider<PurePythonSummaryService>(
+          create: (_) => PurePythonSummaryService(),
         ),
         Provider<StorageService>(
           create: (_) => StorageService(),
@@ -49,36 +57,21 @@ class MyApp extends StatelessWidget {
         Provider<PreloadService>(
           create: (context) => PreloadService(
             wikiService: context.read<WikiService>(),
-            geminiService: context.read<GeminiService>(),
+            // Hybrid yerine pure python servisi kullan
+            purePythonSummaryService: context.read<PurePythonSummaryService>(),
           ),
         ),
         // ViewModeller
         ChangeNotifierProvider<ArticleViewModel>(
           create: (context) => ArticleViewModel(
             wikiService: context.read<WikiService>(),
-            geminiService: context.read<GeminiService>(),
+            // Hybrid yerine pure python servisi kullan
+            purePythonSummaryService: context.read<PurePythonSummaryService>(),
             storageService: context.read<StorageService>(),
-            preloadService: context.read<PreloadService>(),
           ),
         ),
         ChangeNotifierProvider<FavoritesViewModel>(
           create: (context) => FavoritesViewModel(
-            storageService: context.read<StorageService>(),
-          ),
-        ),
-        // Oyun önerileri için ViewModel
-        ChangeNotifierProvider<GameViewModel>(
-          create: (context) => GameViewModel(
-            geminiService: context.read<GeminiService>(),
-            wikiService: context.read<WikiService>(),
-            storageService: context.read<StorageService>(),
-          ),
-        ),
-        // Dizi/Film önerileri için ViewModel
-        ChangeNotifierProvider<MovieViewModel>(
-          create: (context) => MovieViewModel(
-            geminiService: context.read<GeminiService>(),
-            wikiService: context.read<WikiService>(),
             storageService: context.read<StorageService>(),
           ),
         ),

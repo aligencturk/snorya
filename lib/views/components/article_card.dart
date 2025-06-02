@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:ui';
 import '../../models/article.dart';
 
 class ArticleCard extends StatefulWidget {
@@ -10,6 +9,7 @@ class ArticleCard extends StatefulWidget {
   final VoidCallback? onNavigateToFavorites;
   final VoidCallback? onVerticalScroll;
   final VoidCallback? onLoadSimilarArticle;
+  final VoidCallback? onSwipeRight;
   
   const ArticleCard({
     super.key,
@@ -19,6 +19,7 @@ class ArticleCard extends StatefulWidget {
     this.onNavigateToFavorites,
     this.onVerticalScroll,
     this.onLoadSimilarArticle,
+    this.onSwipeRight,
   });
 
   @override
@@ -27,10 +28,8 @@ class ArticleCard extends StatefulWidget {
 
 class _ArticleCardState extends State<ArticleCard> with SingleTickerProviderStateMixin {
   final PageController _pageController = PageController();
-  int _currentPageIndex = 0;
   late AnimationController _buttonAnimationController;
   late Animation<double> _buttonAnimation;
-  bool _buttonsVisible = false;
   
   @override
   void initState() {
@@ -50,9 +49,6 @@ class _ArticleCardState extends State<ArticleCard> with SingleTickerProviderStat
     // Butonları 0.5 saniye sonra göster
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
-        setState(() {
-          _buttonsVisible = true;
-        });
         _buttonAnimationController.forward();
       }
     });
@@ -73,34 +69,45 @@ class _ArticleCardState extends State<ArticleCard> with SingleTickerProviderStat
     final String imageUrl = widget.article.imageUrl;
     final bool isFavorite = widget.article.isFavorite;
     
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black,
-        image: DecorationImage(
-          image: imageUrl.isNotEmpty
-              ? NetworkImage(imageUrl) as ImageProvider
-              : const AssetImage('assets/images/placeholder.png'),
-          fit: BoxFit.cover,
-          colorFilter: ColorFilter.mode(
-            Colors.black.withOpacity(0.4),
-            BlendMode.darken,
+    return GestureDetector(
+      onPanUpdate: (details) {
+        // Sağa kaydırma hareketi algılandığında
+        if (details.delta.dx > 5 && details.delta.dy.abs() < 10) {
+          _pageController.animateToPage(
+            1,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeOutQuint,
+          );
+          widget.onSwipeRight?.call();
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black,
+          image: DecorationImage(
+            image: imageUrl.isNotEmpty
+                ? NetworkImage(imageUrl) as ImageProvider
+                : const AssetImage('assets/images/placeholder.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              Colors.black.withOpacity(0.4),
+              BlendMode.darken,
+            ),
           ),
         ),
-      ),
-      child: PageView(
-        controller: _pageController,
-        onPageChanged: (index) {
-          setState(() {
-            _currentPageIndex = index;
-          });
-        },
-        children: [
-          // İlk sayfa - Özet
-          _buildSummaryPage(title, summary, isFavorite),
-          
-          // İkinci sayfa - Tam içerik
-          _buildFullContentPage(title, content, imageUrl),
-        ],
+        child: PageView(
+          controller: _pageController,
+          onPageChanged: (index) {
+            // ... existing code ...
+          },
+          children: [
+            // İlk sayfa - Özet
+            _buildSummaryPage(title, summary, isFavorite),
+            
+            // İkinci sayfa - Tam içerik
+            _buildFullContentPage(title, content, imageUrl),
+          ],
+        ),
       ),
     );
   }
@@ -395,12 +402,11 @@ class _ArticleCardState extends State<ArticleCard> with SingleTickerProviderStat
                                   // Animasyonlu tıklama efekti
                                   HapticFeedback.mediumImpact();
                                   // Ölçek animasyonu
-                                  final _controller = AnimationController(
+                                  final controller = AnimationController(
                                     duration: const Duration(milliseconds: 150),
                                     vsync: this,
                                   );
-                                  final _scaleAnimation = Tween<double>(begin: 1.0, end: 0.8).animate(_controller);
-                                  _controller.forward().then((_) => _controller.reverse()).then((_) => _controller.dispose());
+                                  controller.forward().then((_) => controller.reverse()).then((_) => controller.dispose());
                                   
                                   if (widget.onNavigateToFavorites != null) {
                                     widget.onNavigateToFavorites!();
@@ -489,7 +495,6 @@ class _ArticleCardState extends State<ArticleCard> with SingleTickerProviderStat
     
     // Kitap sayfası renkleri - daha sarımsı, göz yorgunluğunu azaltan renk
     final Color pageBgColor = const Color(0xFFF5E8C6); // Daha sarımsı, kitap sayfası rengi
-    final Color textColor = const Color(0xFF3A3A3A); // Koyu gri metin rengi
     
     return Container(
       color: Colors.black, // Siyah arka plan

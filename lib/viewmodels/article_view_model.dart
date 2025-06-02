@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/article.dart';
 import '../services/wiki_service.dart';
-import '../services/gemini_service.dart';
+import '../services/pure_python_summary_service.dart';
 import '../utils/constants.dart';
 import '../services/storage_service.dart';
-import '../services/preload_service.dart';
 
 enum ArticleLoadingState {
   initial,
@@ -15,19 +14,16 @@ enum ArticleLoadingState {
 
 class ArticleViewModel extends ChangeNotifier {
   final WikiService _wikiService;
-  final GeminiService _geminiService;
+  final PurePythonSummaryService _purePythonSummaryService;
   final StorageService _storageService;
-  final PreloadService _preloadService;
 
   ArticleViewModel({
     required WikiService wikiService,
-    required GeminiService geminiService,
+    required PurePythonSummaryService purePythonSummaryService,
     required StorageService storageService,
-    required PreloadService preloadService,
   }) : _wikiService = wikiService,
-       _geminiService = geminiService,
-       _storageService = storageService,
-       _preloadService = preloadService;
+       _purePythonSummaryService = purePythonSummaryService,
+       _storageService = storageService;
 
   List<Article> _articles = [];
   List<Article> get articles => _articles;
@@ -62,23 +58,28 @@ class ArticleViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Python servisinin sağlık durumunu kontrol et
+      print('🏥 Python servisi sağlık kontrolü...');
+      final isHealthy = await _purePythonSummaryService.checkHealth();
+      if (!isHealthy) {
+        print('❌ Python servisi çalışmıyor!');
+        print(PurePythonSummaryService.getStartupInstructions());
+        _state = ArticleLoadingState.error;
+        _errorMessage = 'Python servisi çalışmıyor. Lütfen servisi başlatın.\n\n${PurePythonSummaryService.getStartupInstructions()}';
+        notifyListeners();
+        return;
+      }
+      print('✅ Python servisi çalışıyor!');
+
       // Favori makaleleri yükle
       await _loadFavorites();
 
-      // Önceki kategoriyi yükle
-      final lastCategory = await _storageService.getLastCategory();
-      if (lastCategory.isNotEmpty) {
-        _selectedCategory = lastCategory;
-      }
+      // Her zaman karışık kategoriden başla
+      _selectedCategory = AppConstants.categoryMixed;
+      
+      // Kategoriyi kaydet (karışık olarak)
+      await _storageService.saveLastCategory(AppConstants.categoryMixed);
 
-      // Önceki özel konuyu yükle
-      if (_selectedCategory == AppConstants.categoryCustom) {
-        final lastCustomTopic = await _storageService.getLastCustomTopic();
-        if (lastCustomTopic.isNotEmpty) {
-          _selectedCustomTopic = lastCustomTopic;
-        }
-      }
-    
       // Özel konuları yükle
       _customTopics = await _storageService.getCustomTopics();
 
@@ -117,12 +118,15 @@ class ArticleViewModel extends ChangeNotifier {
       // Makale görselini al
       final imageUrl = await _wikiService.getArticleImage(title);
 
-      // Özet oluştur
+      // Özet oluştur - SADECE PYTHON SERVİSİ KULLAN
       String summary;
       try {
-        summary = await _geminiService.generateSummary(content);
+        print('🐍 Python servisi ile özet oluşturuluyor...');
+        summary = await _purePythonSummaryService.generateSummary(content);
+        print('✅ Özet başarıyla oluşturuldu - MALİYET: 0₺');
       } catch (e) {
-        summary = content.length > 200 ? '${content.substring(0, 200)}...' : content;
+        print('❌ Python servisi özet hatası: $e');
+        summary = AppConstants.fallbackSummary;
       }
 
       // Makale nesnesini oluştur
@@ -432,10 +436,10 @@ class ArticleViewModel extends ChangeNotifier {
       // Makale görselini al
       final imageUrl = await _wikiService.getArticleImage(title);
 
-      // Özet oluştur
+      // Özet oluştur - Hibrit servisi kullan
       String summary;
       try {
-        summary = await _geminiService.generateSummary(content);
+        summary = await _purePythonSummaryService.generateSummary(content);
       } catch (e) {
         summary = content.length > 200 ? '${content.substring(0, 200)}...' : content;
       }

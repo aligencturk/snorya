@@ -27,6 +27,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_native_splash: ^2.4.0
 
 flutter:
   uses-material-design: true
@@ -34,6 +35,7 @@ flutter:
   assets:
     - assets/images/
     - assets/logo/snorya_icon.png
+    - assets/logo/snorya.jpg
     - .env
 
 flutter_launcher_icons:
@@ -41,3 +43,10 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/logo/snorya_icon.png"
   remove_alpha_ios: true
+
+flutter_native_splash:
+  image: assets/logo/snorya.jpg
+  color: "#2C3E50"
+  fullscreen: true
+  image_dark: assets/logo/snorya.jpg
+  color_dark: "#2C3E50"

@@ -6,8 +6,6 @@ import '../../utils/constants.dart';
 import '../components/article_card.dart';
 import 'favorites_screen.dart';
 import 'custom_topic_screen.dart';
-import 'game_recommendation_screen.dart';
-import 'movie_recommendation_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,7 +21,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   );
   late AnimationController _animationController;
   late Animation<double> _animation;
-  bool _isScrolling = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isLoadingSimilarContent = false; // Benzer içerik yükleme durumu
 
@@ -190,24 +187,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   // Sayfa geçişini yumuşatmak için physics ekleyelim
                   physics: const ClampingScrollPhysics(),
                   onPageChanged: (index) {
-                    // Kaydırma durumunu güncelle
-                    _isScrolling = true;
-                    
                     // AnimationController'ı yeniden başlat
                     _animationController.reset();
                     _animationController.forward();
                     
                     // ViewModel'e bildir ve gerekliyse yeni içerik yüklemesini sağla
                     viewModel.checkAndLoadMoreArticles(index);
-                    
-                    // Kısa bir süre sonra kaydırma durumunu kapat
-                    Future.delayed(const Duration(milliseconds: 200), () {
-                      if (mounted) {
-                        setState(() {
-                          _isScrolling = false;
-                        });
-                      }
-                    });
                   },
                   itemCount: viewModel.articles.length,
                   itemBuilder: (context, index) {
@@ -269,6 +254,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               curve: Curves.easeOutQuint,
                             );
                           }
+                        },
+                        onSwipeRight: () {
+                          // Sağa kaydırma ile tam içeriğe geçiş
+                          // Bu callback ArticleCard içinde tam sayfa geçişi için kullanılacak
                         },
                         onLoadSimilarArticle: () {
                           if (_isLoadingSimilarContent) return; // Yükleme devam ediyorsa çıkış yap
@@ -461,22 +450,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
   
-  /// Yenileme işlemini ele al
-  void _handleRefresh(ArticleViewModel viewModel) {
-    viewModel.refreshArticle();
-    
-    // Yeni makaleye geç
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) {
-        _pageController.animateToPage(
-          viewModel.articles.length - 1, 
-          duration: const Duration(milliseconds: 500), 
-          curve: Curves.easeOutCubic,
-        );
-      }
-    });
-  }
-  
   /// Favoriler ekranına git
   void _navigateToFavorites(BuildContext context) {
     Navigator.push(
@@ -655,161 +628,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         
         // Oyun kategorisi için özel işleme
         if (category == AppConstants.categoryGames) {
-          // Oyun kategorisi alt menüsü göster
-          showModalBottomSheet(
-            context: context,
-            backgroundColor: Colors.indigo.shade900,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-            ),
-            builder: (BuildContext context) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Alt menü başlık
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.indigo.shade900, Colors.indigo.shade800],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                      ),
-                    ),
-                    child: const Text(
-                      'Oyun',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  
-                  // Oyun Önerisi seçeneği
-                  ListTile(
-                    leading: const Icon(Icons.videogame_asset, color: Colors.amber),
-                    title: const Text(
-                      'Oyun Önerisi',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context); // Alt menüyü kapat
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const GameRecommendationScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  
-                  // Oyunlar kategorisi seçeneği
-                  ListTile(
-                    leading: const Icon(Icons.sports_esports, color: Colors.lightBlueAccent),
-                    title: const Text(
-                      'Oyun İçerikleri',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context); // Alt menüyü kapat
-                      viewModel.changeCategory(category);
-                      _animationController.reset();
-                      _animationController.forward();
-                    },
-                  ),
-                ],
-              );
-            },
-          );
+          // Sadece normal kategori değişimi yap
+          viewModel.changeCategory(category);
+          _animationController.reset();
+          _animationController.forward();
         }
         // Dizi/Film kategorisi için özel işleme
         else if (category == AppConstants.categoryMoviesTv) {
-          // Dizi/Film kategorisi alt menüsü göster
-          showModalBottomSheet(
-            context: context,
-            backgroundColor: Colors.indigo.shade900,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-            ),
-            builder: (BuildContext context) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Alt menü başlık
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.indigo.shade900, Colors.indigo.shade800],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                      ),
-                    ),
-                    child: const Text(
-                      'Dizi / Film',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  
-                  // Dizi/Film Önerisi seçeneği
-                  ListTile(
-                    leading: const Icon(Icons.movie_filter, color: Colors.amber),
-                    title: const Text(
-                      'Dizi/Film Önerisi',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context); // Alt menüyü kapat
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const MovieRecommendationScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  
-                  // Dizi/Film kategorisi seçeneği
-                  ListTile(
-                    leading: const Icon(Icons.movie_creation, color: Colors.lightBlueAccent),
-                    title: const Text(
-                      'Dizi/Film İçerikleri',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context); // Alt menüyü kapat
-                      viewModel.changeCategory(category);
-                      _animationController.reset();
-                      _animationController.forward();
-                    },
-                  ),
-                ],
-              );
-            },
-          );
+          // Sadece normal kategori değişimi yap
+          viewModel.changeCategory(category);
+          _animationController.reset();
+          _animationController.forward();
         }
         // Eğer özel kategoriyse ve seçili değilse, önce değiştir
         else if (category == AppConstants.categoryCustom && !isSelected) {
@@ -828,7 +657,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             MaterialPageRoute(builder: (context) => const CustomTopicScreen()),
           );
         }
-        // Diğer kategoriler için sadece kategoriyi değiştir
+        // Diğer kategoriler için normal işleme
         else {
           viewModel.changeCategory(category);
           _animationController.reset();

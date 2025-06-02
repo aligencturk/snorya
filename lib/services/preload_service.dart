@@ -1,20 +1,20 @@
 import 'dart:collection';
 import '../models/article.dart';
 import 'wiki_service.dart';
-import 'gemini_service.dart';
+import 'pure_python_summary_service.dart';
 import '../utils/constants.dart';
 
 class PreloadService {
   final WikiService _wikiService;
-  final GeminiService _geminiService;
+  final PurePythonSummaryService _purePythonSummaryService;
   final Map<String, Queue<Article>> _categoryQueues = {};
   bool _isPreloading = false;
   
   PreloadService({
     required WikiService wikiService,
-    required GeminiService geminiService,
+    required PurePythonSummaryService purePythonSummaryService,
   }) : _wikiService = wikiService,
-       _geminiService = geminiService {
+       _purePythonSummaryService = purePythonSummaryService {
     // Her kategori için bir kuyruk oluştur
     for (final category in AppConstants.categories) {
       _categoryQueues[category] = Queue<Article>();
@@ -81,7 +81,8 @@ class PreloadService {
       
       // Görsel ve özet işlemlerini paralel yap
       final Future<String> imageFuture = _wikiService.getArticleImage(title);
-      final Future<String> summaryFuture = _geminiService.generateSummary(content);
+      // SADECE PYTHON SERVİSİ KULLAN - GEMİNİ YOK
+      final Future<String> summaryFuture = _purePythonSummaryService.generateSummary(content);
       
       final results = await Future.wait([imageFuture, summaryFuture]);
       final String imageUrl = results[0];
