@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/article.dart';
 import '../services/wiki_service.dart';
-import '../services/pure_python_summary_service.dart';
+import '../services/flutter_wikipedia_service.dart';
 import '../utils/constants.dart';
 import '../services/storage_service.dart';
 
@@ -14,15 +14,15 @@ enum ArticleLoadingState {
 
 class ArticleViewModel extends ChangeNotifier {
   final WikiService _wikiService;
-  final PurePythonSummaryService _purePythonSummaryService;
+  final FlutterWikipediaService _flutterWikipediaService;
   final StorageService _storageService;
 
   ArticleViewModel({
     required WikiService wikiService,
-    required PurePythonSummaryService purePythonSummaryService,
+    required FlutterWikipediaService flutterWikipediaService,
     required StorageService storageService,
   }) : _wikiService = wikiService,
-       _purePythonSummaryService = purePythonSummaryService,
+       _flutterWikipediaService = flutterWikipediaService,
        _storageService = storageService;
 
   List<Article> _articles = [];
@@ -58,18 +58,17 @@ class ArticleViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Python servisinin sağlık durumunu kontrol et
-      print('🏥 Python servisi sağlık kontrolü...');
-      final isHealthy = await _purePythonSummaryService.checkHealth();
+      // Flutter Wikipedia servisinin sağlık durumunu kontrol et
+      print('🏥 Flutter Wikipedia servisi sağlık kontrolü...');
+      final isHealthy = await _flutterWikipediaService.isHealthy();
       if (!isHealthy) {
-        print('❌ Python servisi çalışmıyor!');
-        print(PurePythonSummaryService.getStartupInstructions());
+        print('❌ Wikipedia servisi çalışmıyor!');
         _state = ArticleLoadingState.error;
-        _errorMessage = 'Python servisi çalışmıyor. Lütfen servisi başlatın.\n\n${PurePythonSummaryService.getStartupInstructions()}';
+        _errorMessage = 'Wikipedia servisi erişim sorunu yaşıyor. İnternet bağlantınızı kontrol edin.';
         notifyListeners();
         return;
       }
-      print('✅ Python servisi çalışıyor!');
+      print('✅ Flutter Wikipedia servisi çalışıyor!');
 
       // Favori makaleleri yükle
       await _loadFavorites();
@@ -118,14 +117,14 @@ class ArticleViewModel extends ChangeNotifier {
       // Makale görselini al
       final imageUrl = await _wikiService.getArticleImage(title);
 
-      // Özet oluştur - SADECE PYTHON SERVİSİ KULLAN
+      // Özet oluştur - FLUTTER WIKIPEDIA SERVİSİ KULLAN
       String summary;
       try {
-        print('🐍 Python servisi ile özet oluşturuluyor...');
-        summary = await _purePythonSummaryService.generateSummary(content);
-        print('✅ Özet başarıyla oluşturuldu - MALİYET: 0₺');
+        print('📱 Flutter Wikipedia ile özet oluşturuluyor...');
+        summary = await _flutterWikipediaService.summarizeContent(content);
+        print('✅ Özet başarıyla oluşturuldu - SUNUCU GEREKMİYOR!');
       } catch (e) {
-        print('❌ Python servisi özet hatası: $e');
+        print('❌ Flutter Wikipedia özet hatası: $e');
         summary = AppConstants.fallbackSummary;
       }
 
@@ -436,10 +435,10 @@ class ArticleViewModel extends ChangeNotifier {
       // Makale görselini al
       final imageUrl = await _wikiService.getArticleImage(title);
 
-      // Özet oluştur - Hibrit servisi kullan
+      // Özet oluştur - Flutter Wikipedia servisi kullan
       String summary;
       try {
-        summary = await _purePythonSummaryService.generateSummary(content);
+        summary = await _flutterWikipediaService.summarizeContent(content);
       } catch (e) {
         summary = content.length > 200 ? '${content.substring(0, 200)}...' : content;
       }

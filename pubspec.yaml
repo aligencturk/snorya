@@ -17,11 +17,12 @@ dependencies:
   shared_preferences: ^2.2.2
   cached_network_image: ^3.3.1
   google_generative_ai: ^0.2.2
-  share_plus: ^7.2.1
+  share_plus: ^11.0.0
   flutter_launcher_icons: ^0.14.3
   flutter_markdown: ^0.7.7+1
   shimmer: ^3.0.0
   flutter_dotenv: ^5.1.0
+  wikipedia: ^0.0.8  # Direkt Wikipedia paketi - sunucu gerektirmez!
 
 dev_dependencies:
   flutter_test:
@@ -46,7 +47,5 @@ flutter_launcher_icons:
 
 flutter_native_splash:
   image: assets/logo/snorya.jpg
-  color: "#2C3E50"
+  color: "ffffff"
   fullscreen: true
-  image_dark: assets/logo/snorya.jpg
-  color_dark: "#2C3E50"

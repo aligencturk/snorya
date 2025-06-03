@@ -41,9 +41,10 @@ class AppConstants {
   // PRODUCTION MODLARI
   static const bool isProduction = bool.fromEnvironment('dart.vm.product');
   
-  // Özet Servisi Modu - SADECE PYTHON SERVİSİ KULLANILACAK
-  static const bool usePythonSummaryService = true; // Kesin Python servisi
-  static const bool allowGeminiFallback = false; // Gemini fallback kapalı
+  // Özet Servisi Modu - FLUTTER WIKIPEDIA PAKETİ KULLANILACAK
+  static const bool useFlutterWikipedia = true; // Flutter Wikipedia paketi kullan
+  static const bool usePythonSummaryService = false; // Python servisi kapalı
+  static const bool allowGeminiFallback = true; // Gemini fallback açık
   
   // Python Özet Servisi URL'i - Smart URL Selection
   static String get pythonSummaryServiceUrl {
@@ -57,8 +58,8 @@ class AppConstants {
     }
     
     if (isProduction) {
-      // Production'da varsayılan cloud URL
-      const cloudUrl = 'https://snorya-python-service.vercel.app';
+      // Production'da geçici cloud URL - buraya deploy edilen URL gelecek
+      const cloudUrl = 'https://python-summary-service-production.up.railway.app';
       print('🚀 Production modu - Cloud servisi: $cloudUrl');
       return cloudUrl;
     } else {

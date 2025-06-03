@@ -1,20 +1,20 @@
 import 'dart:collection';
 import '../models/article.dart';
 import 'wiki_service.dart';
-import 'pure_python_summary_service.dart';
+import 'flutter_wikipedia_service.dart';
 import '../utils/constants.dart';
 
 class PreloadService {
   final WikiService _wikiService;
-  final PurePythonSummaryService _purePythonSummaryService;
+  final FlutterWikipediaService _flutterWikipediaService;
   final Map<String, Queue<Article>> _categoryQueues = {};
   bool _isPreloading = false;
   
   PreloadService({
     required WikiService wikiService,
-    required PurePythonSummaryService purePythonSummaryService,
+    required FlutterWikipediaService flutterWikipediaService,
   }) : _wikiService = wikiService,
-       _purePythonSummaryService = purePythonSummaryService {
+       _flutterWikipediaService = flutterWikipediaService {
     // Her kategori için bir kuyruk oluştur
     for (final category in AppConstants.categories) {
       _categoryQueues[category] = Queue<Article>();
@@ -81,8 +81,8 @@ class PreloadService {
       
       // Görsel ve özet işlemlerini paralel yap
       final Future<String> imageFuture = _wikiService.getArticleImage(title);
-      // SADECE PYTHON SERVİSİ KULLAN - GEMİNİ YOK
-      final Future<String> summaryFuture = _purePythonSummaryService.generateSummary(content);
+      // FLUTTER WIKIPEDIA SERVİSİ KULLAN - SUNUCU GEREKMİYOR
+      final Future<String> summaryFuture = _flutterWikipediaService.summarizeContent(content);
       
       final results = await Future.wait([imageFuture, summaryFuture]);
       final String imageUrl = results[0];

@@ -3,8 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/wiki_service.dart';
-import 'services/python_summary_service.dart';
-import 'services/pure_python_summary_service.dart';
+import 'services/flutter_wikipedia_service.dart';
 import 'services/storage_service.dart';
 import 'services/preload_service.dart';
 import 'viewmodels/article_view_model.dart';
@@ -25,10 +24,13 @@ void main() async {
     ),
   );
   
-  // Python servisi başlatma talimatlarını göster
-  print('🐍 SNORYA - PYTHON SERVİSİ MODU');
-  print('================================');
-  print(PurePythonSummaryService.getStartupInstructions());
+  // Flutter Wikipedia servisi bilgilendirmesi
+  print('📱 SNORYA - FLUTTER WIKIPEDIA PAKETİ MODU');
+  print('==========================================');
+  print('✅ Python sunucu gerektirmez!');
+  print('✅ %100 ücretsiz!');
+  print('✅ Hızlı ve güvenilir!');
+  print('📦 Wikipedia paketi: ^0.0.8');
   
   runApp(const MyApp());
 }
@@ -44,12 +46,9 @@ class MyApp extends StatelessWidget {
         Provider<WikiService>(
           create: (_) => WikiService(),
         ),
-        Provider<PythonSummaryService>(
-          create: (_) => PythonSummaryService(),
-        ),
-        // SADECE PYTHON SERVİSİ - GEMİNİ FALLBACK YOK
-        Provider<PurePythonSummaryService>(
-          create: (_) => PurePythonSummaryService(),
+        // FLUTTER WIKIPEDIA SERVİSİ - PYTHON SUNUCU GEREKMİYOR
+        Provider<FlutterWikipediaService>(
+          create: (_) => FlutterWikipediaService(),
         ),
         Provider<StorageService>(
           create: (_) => StorageService(),
@@ -57,16 +56,16 @@ class MyApp extends StatelessWidget {
         Provider<PreloadService>(
           create: (context) => PreloadService(
             wikiService: context.read<WikiService>(),
-            // Hybrid yerine pure python servisi kullan
-            purePythonSummaryService: context.read<PurePythonSummaryService>(),
+            // Flutter Wikipedia servisi kullan
+            flutterWikipediaService: context.read<FlutterWikipediaService>(),
           ),
         ),
         // ViewModeller
         ChangeNotifierProvider<ArticleViewModel>(
           create: (context) => ArticleViewModel(
             wikiService: context.read<WikiService>(),
-            // Hybrid yerine pure python servisi kullan
-            purePythonSummaryService: context.read<PurePythonSummaryService>(),
+            // Flutter Wikipedia servisi kullan
+            flutterWikipediaService: context.read<FlutterWikipediaService>(),
             storageService: context.read<StorageService>(),
           ),
         ),
