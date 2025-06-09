@@ -86,7 +86,7 @@ class MyApp extends StatelessWidget {
               TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
             },
           ),
-          cardTheme: CardTheme(
+          cardTheme: CardThemeData(
             elevation: 6.0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20.0),
