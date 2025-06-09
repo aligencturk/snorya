@@ -47,10 +47,8 @@ flutter_launcher_icons:
 
 flutter_native_splash:
   image: assets/logo/snorya.jpg
-  color: "ffffff"
   fullscreen: true
   android_gravity: fill
   ios_content_mode: scaleAspectFill
   android_12:
     image: assets/logo/snorya.jpg
-    color: "ffffff"
