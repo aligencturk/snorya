@@ -401,9 +401,9 @@ class WikiService {
         return '';
       }
       
-      // İkinci adım: Önce daha yüksek kaliteli görsel alın
+      // Yüksek kaliteli görsel için önce 1200px boyutunda dene
       final Uri imageInfoUrl = Uri.parse(
-        '${AppConstants.wikipediaApiBaseUrl}?action=query&format=json&prop=pageimages&titles=${Uri.encodeComponent(title)}&pithumbsize=800&pilimit=1'
+        '${AppConstants.wikipediaApiBaseUrl}?action=query&format=json&prop=pageimages&titles=${Uri.encodeComponent(title)}&pithumbsize=1200&pilimit=1'
       );
       
       final response = await http.get(imageInfoUrl);
@@ -417,9 +417,25 @@ class WikiService {
         }
       }
       
-      // Yüksek çözünürlüklü görsel alınamadıysa alternatif görsel arama yöntemi
+      // 1200px bulunamadıysa 800px dene
+      final Uri mediumImageUrl = Uri.parse(
+        '${AppConstants.wikipediaApiBaseUrl}?action=query&format=json&prop=pageimages&titles=${Uri.encodeComponent(title)}&pithumbsize=800&pilimit=1'
+      );
+      
+      final mediumResponse = await http.get(mediumImageUrl);
+      
+      if (mediumResponse.statusCode == 200) {
+        final data = json.decode(mediumResponse.body);
+        final pages = data['query']['pages'] as Map<String, dynamic>;
+        
+        if (pages[pageId].containsKey('thumbnail')) {
+          return pages[pageId]['thumbnail']['source'];
+        }
+      }
+      
+      // Ana görsel yoksa, alternatif görsel arama
       final Uri alternativeUrl = Uri.parse(
-        '${AppConstants.wikipediaApiBaseUrl}?action=query&format=json&generator=images&titles=${Uri.encodeComponent(title)}&prop=imageinfo&iiprop=url&gimlimit=5'
+        '${AppConstants.wikipediaApiBaseUrl}?action=query&format=json&generator=images&titles=${Uri.encodeComponent(title)}&prop=imageinfo&iiprop=url&gimlimit=10'
       );
       
       final alternativeResponse = await http.get(alternativeUrl);
@@ -433,16 +449,34 @@ class WikiService {
         }
         
         final images = data['query']['pages'] as Map<String, dynamic>;
-        // Görselleri filtrele - SVG, PNG, JPG formatında olanları al
+        // Yüksek kaliteli görselleri filtrele - sadece JPG, PNG formatları
         final validImages = images.values.where((image) {
-          final url = image['imageinfo'][0]['url'].toString().toLowerCase();
-          return url.endsWith('.jpg') || url.endsWith('.jpeg') || url.endsWith('.png');
+          if (!image.containsKey('imageinfo') || image['imageinfo'].isEmpty) {
+            return false;
+          }
+          
+          final imageInfo = image['imageinfo'][0];
+          final url = imageInfo['url'].toString().toLowerCase();
+          
+          // Sadece yüksek kaliteli formatları kabul et
+          final hasValidFormat = url.endsWith('.jpg') || 
+                                url.endsWith('.jpeg') || 
+                                url.endsWith('.png');
+          
+          // Logo, ikon ve düşük kaliteli formatları hariç tut
+          final hasInvalidFormat = url.endsWith('.svg') || 
+                                  url.endsWith('.ico') || 
+                                  url.endsWith('.gif') ||
+                                  url.contains('commons-logo') ||
+                                  url.contains('wikimedia-logo') ||
+                                  url.contains('edit-icon');
+          
+          return hasValidFormat && !hasInvalidFormat;
         }).toList();
         
         if (validImages.isNotEmpty) {
-          // Rastgele bir görsel seç
-          final randomIndex = _random.nextInt(validImages.length);
-          return validImages[randomIndex]['imageinfo'][0]['url'];
+          // İlk geçerli görseli seç
+          return validImages.first['imageinfo'][0]['url'];
         }
       }
       
@@ -836,8 +870,15 @@ class WikiService {
     try {
       // İçerik al
       final content = await getArticleContent(title);
-      // Görsel al
-      final imageUrl = await getArticleImage(title);
+      
+      // Görsel al - önce yüksek kaliteli görsel denenir
+      final imageUrl = await getArticleImageHighQuality(title);
+      
+      // Eğer görsel yoksa, bu makaleyi atla ve null döndür
+      if (imageUrl.isEmpty) {
+        print('⚠️ Makale görseli bulunamadı: $title');
+        return null;
+      }
       
       // Wikipedia URL'ini oluştur
       final encodedTitle = Uri.encodeComponent(title.replaceAll(' ', '_'));
@@ -850,6 +891,122 @@ class WikiService {
       };
     } catch (e) {
       return null;
+    }
+  }
+
+  /// Yüksek kaliteli makale görseli getirir
+  Future<String> getArticleImageHighQuality(String title) async {
+    try {
+      // Önce sayfa kimliğini al
+      final Uri pageIdUrl = Uri.parse(
+        '${AppConstants.wikipediaApiBaseUrl}?action=query&format=json&titles=${Uri.encodeComponent(title)}'
+      );
+      
+      final pageIdResponse = await http.get(pageIdUrl);
+      
+      if (pageIdResponse.statusCode != 200) {
+        return '';
+      }
+      
+      final pageIdData = json.decode(pageIdResponse.body);
+      final pages = pageIdData['query']['pages'] as Map<String, dynamic>;
+      final pageId = pages.keys.first;
+      
+      if (pageId == '-1') {
+        return '';
+      }
+      
+      // Yüksek kaliteli görsel için önce 1200px boyutunda dene
+      final Uri imageInfoUrl = Uri.parse(
+        '${AppConstants.wikipediaApiBaseUrl}?action=query&format=json&prop=pageimages&titles=${Uri.encodeComponent(title)}&pithumbsize=1200&pilimit=1'
+      );
+      
+      final response = await http.get(imageInfoUrl);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final pages = data['query']['pages'] as Map<String, dynamic>;
+        
+        if (pages[pageId].containsKey('thumbnail')) {
+          final thumbnailUrl = pages[pageId]['thumbnail']['source'];
+          print('✅ Yüksek kaliteli görsel bulundu: $thumbnailUrl');
+          return thumbnailUrl;
+        }
+      }
+      
+      // 1200px bulunamadıysa 800px dene
+      final Uri mediumImageUrl = Uri.parse(
+        '${AppConstants.wikipediaApiBaseUrl}?action=query&format=json&prop=pageimages&titles=${Uri.encodeComponent(title)}&pithumbsize=800&pilimit=1'
+      );
+      
+      final mediumResponse = await http.get(mediumImageUrl);
+      
+      if (mediumResponse.statusCode == 200) {
+        final data = json.decode(mediumResponse.body);
+        final pages = data['query']['pages'] as Map<String, dynamic>;
+        
+        if (pages[pageId].containsKey('thumbnail')) {
+          final thumbnailUrl = pages[pageId]['thumbnail']['source'];
+          print('✅ Orta kaliteli görsel bulundu: $thumbnailUrl');
+          return thumbnailUrl;
+        }
+      }
+      
+      // Ana görsel yoksa, alternatif görsel arama (sadece yüksek kaliteli formatlar)
+      final Uri alternativeUrl = Uri.parse(
+        '${AppConstants.wikipediaApiBaseUrl}?action=query&format=json&generator=images&titles=${Uri.encodeComponent(title)}&prop=imageinfo&iiprop=url&gimlimit=10'
+      );
+      
+      final alternativeResponse = await http.get(alternativeUrl);
+      
+      if (alternativeResponse.statusCode == 200) {
+        final data = json.decode(alternativeResponse.body);
+        
+        if (!data.containsKey('query') || !data['query'].containsKey('pages')) {
+          return '';
+        }
+        
+        final images = data['query']['pages'] as Map<String, dynamic>;
+        
+        // Yüksek kaliteli görselleri filtrele - sadece JPG, PNG formatları ve minimum boyut kontrolleri
+        final validImages = images.values.where((image) {
+          if (!image.containsKey('imageinfo') || image['imageinfo'].isEmpty) {
+            return false;
+          }
+          
+          final imageInfo = image['imageinfo'][0];
+          final url = imageInfo['url'].toString().toLowerCase();
+          
+          // Sadece yüksek kaliteli formatları kabul et
+          final hasValidFormat = url.endsWith('.jpg') || 
+                                url.endsWith('.jpeg') || 
+                                url.endsWith('.png');
+          
+          // SVG, ico, gif gibi düşük kaliteli veya vektör formatları hariç tut
+          final hasInvalidFormat = url.endsWith('.svg') || 
+                                  url.endsWith('.ico') || 
+                                  url.endsWith('.gif') ||
+                                  url.contains('commons-logo') ||
+                                  url.contains('wikimedia-logo') ||
+                                  url.contains('edit-icon');
+          
+          return hasValidFormat && !hasInvalidFormat;
+        }).toList();
+        
+        if (validImages.isNotEmpty) {
+          // İlk geçerli görseli seç (genellikle ana görseldir)
+          final imageUrl = validImages.first['imageinfo'][0]['url'];
+          print('✅ Alternatif yüksek kaliteli görsel bulundu: $imageUrl');
+          return imageUrl;
+        }
+      }
+      
+      // Hiçbir uygun görsel bulunamadı
+      print('❌ Hiçbir uygun görsel bulunamadı: $title');
+      return '';
+    } catch (e) {
+      print('❌ Görsel arama hatası: $e');
+      return '';
     }
   }
   

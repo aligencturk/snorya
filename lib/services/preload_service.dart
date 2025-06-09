@@ -72,34 +72,47 @@ class PreloadService {
   
   // Tek bir makale yükle
   Future<Article?> _loadSingleArticle(String category, {String customTopic = ''}) async {
-    try {
-      final String title = await _wikiService.getRandomArticleTitle(
-        category, 
-        customTopic: customTopic
-      );
-      final String content = await _wikiService.getArticleContent(title);
-      
-      // Görsel ve özet işlemlerini paralel yap
-      final Future<String> imageFuture = _wikiService.getArticleImage(title);
-      // FLUTTER WIKIPEDIA SERVİSİ KULLAN - SUNUCU GEREKMİYOR
-      final Future<String> summaryFuture = _flutterWikipediaService.summarizeContent(content);
-      
-      final results = await Future.wait([imageFuture, summaryFuture]);
-      final String imageUrl = results[0];
-      final String summary = results[1];
-      
-      return Article(
-        title: title,
-        content: content,
-        summary: summary,
-        imageUrl: imageUrl,
-        category: category,
-        isFavorite: false,
-      );
-    } catch (e) {
-      print('Makale yükleme hatası: $e');
-      return null;
+    int retryCount = 0;
+    const int maxRetries = 3;
+    
+    while (retryCount < maxRetries) {
+      try {
+        final String title = await _wikiService.getRandomArticleTitle(
+          category, 
+          customTopic: customTopic
+        );
+        final String content = await _wikiService.getArticleContent(title);
+        
+        // Yüksek kaliteli görsel al - eğer görsel yoksa bu makaleyi atla
+        final String imageUrl = await _wikiService.getArticleImageHighQuality(title);
+        
+        if (imageUrl.isEmpty) {
+          print('⚠️ Önbellek için makale görseli bulunamadı, atlanıyor: $title');
+          retryCount++;
+          continue;
+        }
+        
+        // FLUTTER WIKIPEDIA SERVİSİ KULLAN - SUNUCU GEREKMİYOR
+        final String summary = await _flutterWikipediaService.summarizeContent(content);
+        
+        print('✅ Önbellek için görseli olan makale yüklendi: $title');
+        
+        return Article(
+          title: title,
+          content: content,
+          summary: summary,
+          imageUrl: imageUrl,
+          category: category,
+          isFavorite: false,
+        );
+      } catch (e) {
+        print('❌ Önbellek makale yükleme denemesi başarısız: $e');
+        retryCount++;
+      }
     }
+    
+    print('❌ Önbellek için uygun makale bulunamadı');
+    return null;
   }
   
   // Kategori için arka planda yeterli makale olduğunu kontrol et

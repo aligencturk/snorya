@@ -105,53 +105,84 @@ class ArticleViewModel extends ChangeNotifier {
         return;
       }
 
-      // Wikipediadam rastgele makale başlığı al
-      final title = await _wikiService.getRandomArticleTitle(
-        _selectedCategory,
-        customTopic: _selectedCustomTopic,
-      );
+      // Görseli olan makale bulana kadar dene (maksimum 5 deneme)
+      Article? article;
+      int retryCount = 0;
+      const int maxRetries = 5;
+      
+      while (article == null && retryCount < maxRetries) {
+        try {
+          // Wikipedia'dan rastgele makale başlığı al
+          final title = await _wikiService.getRandomArticleTitle(
+            _selectedCategory,
+            customTopic: _selectedCustomTopic,
+          );
 
-      // Makale içeriğini al
-      final content = await _wikiService.getArticleContent(title);
+          // Makale içeriğini al
+          final content = await _wikiService.getArticleContent(title);
 
-      // Makale görselini al
-      final imageUrl = await _wikiService.getArticleImage(title);
+          // Yüksek kaliteli makale görselini al
+          final imageUrl = await _wikiService.getArticleImageHighQuality(title);
 
-      // Özet oluştur - FLUTTER WIKIPEDIA SERVİSİ KULLAN
-      String summary;
-      try {
-        print('📱 Flutter Wikipedia ile özet oluşturuluyor...');
-        summary = await _flutterWikipediaService.summarizeContent(content);
-        print('✅ Özet başarıyla oluşturuldu - SUNUCU GEREKMİYOR!');
-      } catch (e) {
-        print('❌ Flutter Wikipedia özet hatası: $e');
-        summary = AppConstants.fallbackSummary;
+          // Eğer görsel yoksa, bu makaleyi atla ve tekrar dene
+          if (imageUrl.isEmpty) {
+            print('⚠️ Makale görseli bulunamadı, yeniden deneniyor: $title');
+            retryCount++;
+            continue;
+          }
+
+          // Özet oluştur - FLUTTER WIKIPEDIA SERVİSİ KULLAN
+          String summary;
+          try {
+            print('📱 Flutter Wikipedia ile özet oluşturuluyor...');
+            summary = await _flutterWikipediaService.summarizeContent(content);
+            print('✅ Özet başarıyla oluşturuldu - SUNUCU GEREKMİYOR!');
+          } catch (e) {
+            print('❌ Flutter Wikipedia özet hatası: $e');
+            summary = AppConstants.fallbackSummary;
+          }
+
+          // Makale nesnesini oluştur
+          article = Article(
+            title: title,
+            content: content,
+            summary: summary,
+            imageUrl: imageUrl,
+            category: _selectedCategory,
+          );
+
+          // Favorilerde var mı kontrol et
+          final favorites = await _storageService.loadFavorites();
+          if (favorites.any((fav) => fav.title == article!.title)) {
+            article = article.copyWith(isFavorite: true);
+          }
+
+          print('✅ Görseli olan makale başarıyla yüklendi: $title');
+          
+        } catch (e) {
+          print('❌ Makale yükleme denemesi başarısız: $e');
+          retryCount++;
+        }
       }
 
-      // Makale nesnesini oluştur
-      var article = Article(
-        title: title,
-        content: content,
-        summary: summary,
-        imageUrl: imageUrl,
-        category: _selectedCategory,
-      );
-
-      // Favorilerde var mı kontrol et
-      final favorites = await _storageService.loadFavorites();
-      if (favorites.any((fav) => fav.title == article.title)) {
-        article = article.copyWith(isFavorite: true);
+      // Eğer hiçbir makale bulunamadıysa hata mesajı göster
+      if (article == null) {
+        _state = ArticleLoadingState.error;
+        _errorMessage = 'Görseli olan makale bulunamadı. Lütfen kategoriyi değiştirip tekrar deneyin.';
+        notifyListeners();
+        return;
       }
 
-      // Listeye ekle
+      // Başarılı makaleyi listeye ekle
       _articles.add(article);
       _currentIndex = _articles.length - 1;
 
       _state = ArticleLoadingState.loaded;
       notifyListeners();
     } catch (e) {
+      print('❌ Genel makale yükleme hatası: $e');
       _state = ArticleLoadingState.error;
-      _errorMessage = 'Makale yüklenirken bir hata oluştu: $e';
+      _errorMessage = AppConstants.errorLoadingArticle;
       notifyListeners();
     }
   }
@@ -426,39 +457,69 @@ class ArticleViewModel extends ChangeNotifier {
       _state = ArticleLoadingState.loading;
       notifyListeners();
 
-      // Wikipediadam benzer makale başlığı al
-      final title = await _wikiService.getSimilarArticleTitle(currentArticle.title);
+      // Görseli olan benzer makale bulana kadar dene (maksimum 5 deneme)
+      Article? article;
+      int retryCount = 0;
+      const int maxRetries = 5;
+      
+      while (article == null && retryCount < maxRetries) {
+        try {
+          // Wikipedia'dan benzer makale başlığı al
+          final title = await _wikiService.getSimilarArticleTitle(currentArticle.title);
 
-      // Makale içeriğini al
-      final content = await _wikiService.getArticleContent(title);
+          // Makale içeriğini al
+          final content = await _wikiService.getArticleContent(title);
 
-      // Makale görselini al
-      final imageUrl = await _wikiService.getArticleImage(title);
+          // Yüksek kaliteli makale görselini al
+          final imageUrl = await _wikiService.getArticleImageHighQuality(title);
 
-      // Özet oluştur - Flutter Wikipedia servisi kullan
-      String summary;
-      try {
-        summary = await _flutterWikipediaService.summarizeContent(content);
-      } catch (e) {
-        summary = content.length > 200 ? '${content.substring(0, 200)}...' : content;
+          // Eğer görsel yoksa, bu makaleyi atla ve tekrar dene
+          if (imageUrl.isEmpty) {
+            print('⚠️ Benzer makale görseli bulunamadı, yeniden deneniyor: $title');
+            retryCount++;
+            continue;
+          }
+
+          // Özet oluştur - Flutter Wikipedia servisi kullan
+          String summary;
+          try {
+            summary = await _flutterWikipediaService.summarizeContent(content);
+          } catch (e) {
+            summary = content.length > 200 ? '${content.substring(0, 200)}...' : content;
+          }
+
+          // Makale nesnesini oluştur
+          article = Article(
+            title: title,
+            content: content,
+            summary: summary,
+            imageUrl: imageUrl,
+            category: _selectedCategory,
+          );
+
+          // Favorilerde var mı kontrol et
+          final favorites = await _storageService.loadFavorites();
+          if (favorites.any((fav) => fav.title == article!.title)) {
+            article = article.copyWith(isFavorite: true);
+          }
+
+          print('✅ Görseli olan benzer makale başarıyla yüklendi: $title');
+          
+        } catch (e) {
+          print('❌ Benzer makale yükleme denemesi başarısız: $e');
+          retryCount++;
+        }
       }
 
-      // Makale nesnesini oluştur
-      var article = Article(
-        title: title,
-        content: content,
-        summary: summary,
-        imageUrl: imageUrl,
-        category: _selectedCategory,
-      );
-
-      // Favorilerde var mı kontrol et
-      final favorites = await _storageService.loadFavorites();
-      if (favorites.any((fav) => fav.title == article.title)) {
-        article = article.copyWith(isFavorite: true);
+      // Eğer hiçbir benzer makale bulunamadıysa hata mesajı göster
+      if (article == null) {
+        _state = ArticleLoadingState.error;
+        _errorMessage = 'Görseli olan benzer makale bulunamadı. Lütfen tekrar deneyin.';
+        notifyListeners();
+        throw Exception(_errorMessage);
       }
 
-      // Listeye ekle
+      // Başarılı makaleyi listeye ekle
       _articles.add(article);
       _currentIndex = _articles.length - 1;
 
@@ -467,6 +528,7 @@ class ArticleViewModel extends ChangeNotifier {
       
       return; // Future tamamlandı
     } catch (e) {
+      print('❌ Genel benzer makale yükleme hatası: $e');
       _state = ArticleLoadingState.error;
       _errorMessage = 'Benzer makale yüklenirken bir hata oluştu: $e';
       notifyListeners();
