@@ -2,7 +2,7 @@ name: snorya
 description: "Wikipedia makalelerini Gemini AI ile özetleyip sunan bir uygulama."
 publish_to: 'none'
 
-version: 1.0.3+6
+version: 1.0.4+8  
 
 environment:
   sdk: ^3.7.2
@@ -47,8 +47,5 @@ flutter_launcher_icons:
 
 flutter_native_splash:
   image: assets/logo/snorya.jpg
+  color: "ffffff"
   fullscreen: true
-  android_gravity: fill
-  ios_content_mode: scaleAspectFill
-  android_12:
-    image: assets/logo/snorya.jpg
